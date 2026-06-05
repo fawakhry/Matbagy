@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>مطبعجي بنها - رص الصور</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="watermark">مطبعجي بنها</div>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">مطبعجي بنها</div>
+        <div class="subbrand">برنامج تجهيز ورص الصور للعملاء</div>
+      </div>
+      <button id="notifyBtn" class="ghost">الإشعارات</button>
+    </header>
+
+    <section id="activationView" class="card">
+      <h1>تفعيل البرنامج</h1>
+      <p>اكتب رقم تليفونك أو كود العميل أول مرة فقط. بعد التفعيل سيفتح البرنامج تلقائيًا.</p>
+      <label>رقم الهاتف / كود العميل</label>
+      <input id="activationCode" placeholder="مثال: 01000000000 أو MB-1234" autocomplete="one-time-code" />
+      <button id="activateBtn" class="primary">تفعيل</button>
+      <p id="activationMsg" class="msg"></p>
+      <div class="hint">نسخة تجربة: الأكواد التجريبية تعمل محليًا. اربطها لاحقًا بجوجل شيت من ملف config.js.</div>
+    </section>
+
+    <section id="appView" class="hidden">
+      <section class="card welcome">
+        <div>
+          <h2 id="helloTitle">أهلاً بك</h2>
+          <p>اختار المقاس وارفع الصور، والبرنامج يرُص الشيتات تلقائيًا.</p>
+        </div>
+        <button id="logoutBtn" class="danger ghost">إلغاء التفعيل</button>
+      </section>
+
+      <section class="card">
+        <h2>1) اختار القالب</h2>
+        <div class="templates">
+          <button class="template active" data-template="6x9"><b>6×9</b><span>25 صورة - 5×5</span></button>
+          <button class="template" data-template="10x15"><b>10×15</b><span>9 صور - 3×3</span></button>
+          <button class="template" data-template="7x10"><b>7×10</b><span>19 صورة - 4×4 + 3 مقلوبة</span></button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2) ارفع الصور</h2>
+        <input id="fileInput" type="file" accept="image/*" multiple />
+        <div class="row">
+          <button id="clearBtn" class="ghost">مسح الصور</button>
+          <button id="rotateAllBtn" class="ghost">تدوير الصور المحتاجة</button>
+        </div>
+        <div class="options">
+          <label><input type="radio" name="fitMode" value="contain" checked> أمان كامل: بدون قص للملامح</label>
+          <label><input type="radio" name="fitMode" value="cover"> ملء الخانة مع قص بسيط</label>
+        </div>
+        <div id="photoList" class="photo-list"></div>
+      </section>
+
+      <section class="card">
+        <h2>3) إنشاء الشيتات</h2>
+        <button id="generateBtn" class="primary">إنشاء الشيتات</button>
+        <p id="status" class="msg"></p>
+        <div id="preview" class="preview"></div>
+        <div class="row">
+          <button id="downloadBtn" class="primary hidden">تحميل الشيتات</button>
+          <button id="shareBtn" class="primary hidden">إرسال لمطبعجي بنها</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
