@@ -972,22 +972,14 @@ async function shareWork(){
   shareBtn.textContent = 'جاري التجهيز...';
 
   try{
-    $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة النظيفة HD 300DPI...';
+    $('status').textContent = 'جاري تجهيز ملف ZIP للطباعة HD 300DPI...';
 
     const order = await ensureOrderCreated();
 
-    // النسخة المرسلة للمطبعة نظيفة بدون Watermark وبجودة 300DPI من الصور الأصلية.
+    // نسخة نظيفة بدون Watermark وبجودة 300DPI.
     state.cleanOutputs = await buildOutputs(false);
 
     const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
-    const uploadResult = await tryUploadCleanOutputsToBrowserEndpoint(order, state.cleanOutputs).catch((err)=>{
-      console.warn('Browser upload failed or not configured:', err);
-      return null;
-    });
-
-    const uploadedLinksText = uploadResult?.links?.length
-      ? '\nروابط الملفات:\n' + uploadResult.links.join('\n')
-      : '';
 
     const text = [
       'طلب جديد من تطبيق مطبعجي بنها ✅',
@@ -1002,63 +994,38 @@ async function shareWork(){
       'الجودة: HD 300DPI',
       'الحالة: جاهز للطباعة',
       'الأولوية: عاجل',
-      'المصدر: تطبيق مطبعجي بنها',
+      'المصدر: تطبيق مطبعجي شيتات',
       '',
-      'تم تجهيز نسخة طباعة نظيفة بدون علامة مائية.',
-      'مهم: تُرسل الملفات كـ Document / ملف وليس كصور مضغوطة.',
-      uploadedLinksText
+      'تم تجهيز ملف ZIP يحتوي على شيتات الطباعة النظيفة بدون علامة مائية.',
+      'مهم: الملف يجب إرساله كـ Document / ملف وليس كصور مضغوطة.'
     ].join('\n');
 
-    if(uploadResult?.links?.length){
-      const phone = (CONFIG.whatsappNumber || '').replace(/[^\\d]/g, '');
-      const waUrl = phone
-        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    let zipFile = null;
 
-      window.open(waUrl, '_blank');
-      $('status').textContent = 'تم رفع الملفات وفتح واتساب بروابط الملفات.';
-      return;
-    }
-
-    // الأفضل للموبايل: ملف ZIP واحد لكل الشيتات.
-    const zipFile = await buildCleanZipFile(state.cleanOutputs, order);
-
-    if(zipFile && navigator.canShare && navigator.canShare({ files:[zipFile] })){
-      await navigator.share({
-        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
-        text,
-        files:[zipFile]
-      });
-
-      $('status').textContent = 'تم فتح مشاركة ملف ZIP من المتصفح. أرسله كـ Document / ملف.';
-      return;
-    }
-
-    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/png' }));
-
-    if(navigator.canShare && navigator.canShare({ files })){
-      await navigator.share({
-        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
-        text,
-        files
-      });
-
-      $('status').textContent = 'تم فتح مشاركة الملفات من المتصفح. أرسلها كـ Document / ملف.';
-      return;
+    if(window.JSZip){
+      zipFile = await buildCleanZipFile(state.cleanOutputs, order);
     }
 
     if(zipFile){
       downloadBlobFile(zipFile);
+      $('status').textContent = 'تم تحميل ملف ZIP. افتح واتساب وأرفق الملف كـ Document.';
     }else{
+      // fallback لو JSZip لم يتم تحميله: نزّل الشيتات منفردة.
       state.cleanOutputs.forEach(o=>{
         const file = new File([o.blob], o.name, { type:'image/png' });
         downloadBlobFile(file);
       });
+      $('status').textContent = 'تم تحميل ملفات الطباعة. افتح واتساب وأرفقها كـ Document.';
     }
 
+    await new Promise(resolve => setTimeout(resolve, 700));
+
     alert(
-      'تم تحميل ملفات الطباعة النظيفة HD 300DPI ✅\n\n' +
-      'مهم جدًا: افتح واتساب وأرسل ملف ZIP أو الملفات كـ Document / ملف، وليس كصور.'
+      'تم تجهيز وتحميل ملف الطباعة ✅\n\n' +
+      'الخطوة الأخيرة:\n' +
+      'سيتم فتح واتساب الآن.\n' +
+      'من علامة المرفقات اختر Document / مستند، ثم اختر ملف ZIP من التنزيلات.\n\n' +
+      'لا ترسله كصورة حتى لا تقل الجودة.'
     );
 
     const phone = (CONFIG.whatsappNumber || '').replace(/[^\\d]/g, '');
@@ -1066,12 +1033,11 @@ async function shareWork(){
       ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`;
 
-    window.open(waUrl, '_blank');
-
-    $('status').textContent = 'تم تحميل ملف الطباعة وفتح واتساب. أرفق الملف كـ Document.';
+    window.location.href = waUrl;
   }catch(e){
     console.error(e);
-    $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.';
+    $('status').textContent = e.message || 'حدث خطأ أثناء تجهيز ملف الإرسال.';
+    alert('حدث خطأ أثناء تجهيز ملف الإرسال. جرّب تقليل عدد الصور أو أعد فتح التطبيق.');
   }finally{
     state.isSending = false;
     shareBtn.disabled = false;
