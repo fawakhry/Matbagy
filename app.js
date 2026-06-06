@@ -155,7 +155,7 @@ async function handleFiles(e){
     const url = URL.createObjectURL(file);
     const img = await loadImage(url);
     const rotation = shouldRotate(img, templates[state.template]) ? 90 : 0;
-    state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0, zoom:1 });
+    state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0, zoom:1, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
   }
   renderPhotoList();
 }
@@ -187,7 +187,7 @@ function renderPhotoList(){
       </div>
       <div class="adjust-actions">
         <button type="button" class="zoom-out-btn">- تصغير</button>
-        <input type="range" class="zoom-range" min="1" max="3" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
+        <input type="range" class="zoom-range" min="0.5" max="4" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
         <button type="button" class="zoom-in-btn">+ تكبير</button>
         <button type="button" class="rotate-btn">تدوير 90°</button>
         <button type="button" class="reset-btn">توسيط</button>
@@ -206,18 +206,53 @@ function renderPhotoList(){
       zoomRange.style.flex = '1';
     }
 
-    // المعاينة هنا لا تقص الصورة تلقائيًا.
-    // الصورة تظهر كاملة افتراضيًا، والزوم/التحريك يكون باختيار العميل فقط.
+    // المعاينة هنا لا تقص الصورة تلقائيًا إطلاقًا.
+    // لا نعتمد على object-fit فقط، بل نحسب مقاس contain يدويًا حتى نتجنب أي CSS قد يسبب crop.
     box.style.overflow = 'hidden';
-    imgEl.style.width = '100%';
-    imgEl.style.height = '100%';
-    imgEl.style.objectFit = 'contain';
+    box.style.position = 'relative';
+    imgEl.style.setProperty('position', 'absolute', 'important');
+    imgEl.style.setProperty('left', '50%', 'important');
+    imgEl.style.setProperty('top', '50%', 'important');
+    imgEl.style.setProperty('max-width', 'none', 'important');
+    imgEl.style.setProperty('max-height', 'none', 'important');
+    imgEl.style.setProperty('width', 'auto', 'important');
+    imgEl.style.setProperty('height', 'auto', 'important');
+    imgEl.style.setProperty('object-fit', 'fill', 'important');
     imgEl.style.transformOrigin = 'center center';
+    imgEl.draggable = false;
+    imgEl.setAttribute('draggable', 'false');
+
+    const getPreviewNaturalSize = () => {
+      const rotated = (p.rotation || 0) % 180 !== 0;
+      const sourceW = Number(p.naturalWidth || imgEl.naturalWidth || 1);
+      const sourceH = Number(p.naturalHeight || imgEl.naturalHeight || 1);
+      return rotated ? { w: sourceH, h: sourceW } : { w: sourceW, h: sourceH };
+    };
+
+    const layoutPreviewImage = () => {
+      const rect = box.getBoundingClientRect();
+      const boxW = Math.max(1, rect.width || 118);
+      const boxH = Math.max(1, rect.height || 160);
+      const preview = getPreviewNaturalSize();
+      const containScale = Math.min(boxW / preview.w, boxH / preview.h);
+      const displayW = preview.w * containScale;
+      const displayH = preview.h * containScale;
+
+      // نضبط الأبعاد الفعلية للصورة قبل التحريك/الزوم.
+      if((p.rotation || 0) % 180 !== 0){
+        imgEl.style.width = `${displayH}px`;
+        imgEl.style.height = `${displayW}px`;
+      }else{
+        imgEl.style.width = `${displayW}px`;
+        imgEl.style.height = `${displayH}px`;
+      }
+    };
 
     const applyTransform = () => {
+      layoutPreviewImage();
       const zoom = Number(p.zoom || 1);
-      imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${zoom})`;
-      if(zoomRange) zoomRange.value = Math.min(3, Math.max(1, zoom));
+      imgEl.style.transform = `translate(-50%, -50%) translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${zoom})`;
+      if(zoomRange) zoomRange.value = Math.min(4, Math.max(0.5, zoom));
     };
 
     const invalidateSheets = () => {
@@ -228,10 +263,17 @@ function renderPhotoList(){
       $('downloadBtn').classList.add('hidden');
       $('shareBtn').classList.add('hidden');
       if($('printFileNote')) $('printFileNote').classList.add('hidden');
-      $('status').textContent = 'تم تعديل موضع صورة. اضغط إنشاء الشيتات مرة أخرى.';
+      $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
     };
 
     applyTransform();
+
+    if(window.ResizeObserver){
+      const ro = new ResizeObserver(() => applyTransform());
+      ro.observe(box);
+    }else{
+      window.addEventListener('resize', applyTransform);
+    }
 
     let dragging = false;
     let startX = 0, startY = 0, baseX = 0, baseY = 0;
@@ -285,7 +327,7 @@ function renderPhotoList(){
     };
 
     const setZoom = (value) => {
-      const z = Math.min(3, Math.max(0.6, Number(value) || 1));
+      const z = Math.min(4, Math.max(0.5, Number(value) || 1));
       p.zoom = Math.round(z * 100) / 100;
       applyTransform();
       invalidateSheets();
@@ -345,7 +387,7 @@ function renderPhotoList(){
         ev.preventDefault();
         const distance = getTouchDistance(ev);
         const nextZoom = pinchStartZoom * (distance / pinchStartDistance);
-        p.zoom = Math.min(3, Math.max(1, nextZoom));
+        p.zoom = Math.min(4, Math.max(0.5, nextZoom));
         applyTransform();
       }
     }, { passive:false });
@@ -524,7 +566,7 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   // قد تظهر حواف/فراغات بيضاء إذا كانت نسبة الصورة مختلفة عن مقاس الطباعة.
   // عند تكبير العميل يدويًا فقط، قد يتم قص جزء داخل الإطار حسب اختياره.
   const baseScale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
-  const userZoom = Math.min(3, Math.max(1, Number(photo.zoom || 1)));
+  const userZoom = Math.min(4, Math.max(0.5, Number(photo.zoom || 1)));
   const scale = baseScale * userZoom;
 
   const drawW = sourceW * scale;
