@@ -21,19 +21,19 @@
 
     <section id="activationView" class="card">
       <h1>تفعيل البرنامج</h1>
-      <p>اكتب رقم تليفونك أو كود العميل أول مرة فقط. بعد التفعيل سيفتح البرنامج تلقائيًا.</p>
-      <label>رقم الهاتف / كود العميل</label>
-      <input id="activationCode" placeholder="مثال: 01000000000 أو MB-1234" autocomplete="one-time-code" />
-      <button id="activateBtn" class="primary">تفعيل</button>
+      <p>اكتب رقم الهاتف المسجل لدى مطبعجي بنها. سيتم التفعيل تلقائيًا إذا كان الرقم موجودًا ومفعلًا في قاعدة العملاء.</p>
+      <label>رقم الهاتف</label>
+      <input id="activationCode" type="tel" inputmode="numeric" placeholder="مثال: 01007131332" autocomplete="tel" />
+      <button id="activateBtn" class="primary">تفعيل التطبيق</button>
       <p id="activationMsg" class="msg"></p>
-      <div class="hint">نسخة تجربة: الأكواد التجريبية تعمل محليًا. اربطها لاحقًا بجوجل شيت من ملف config.js.</div>
+      <div class="hint">التفعيل يتم برقم الهاتف فقط، ولا تحتاج إلى إدخال الرقم مرة أخرى على نفس الجهاز.</div>
     </section>
 
     <section id="appView" class="hidden">
       <section class="card welcome">
         <div>
           <h2 id="helloTitle">أهلاً بك</h2>
-          <p>اختار المقاس وارفع الصور، والبرنامج يرُص الشيتات تلقائيًا.</p>
+          <p>اختار المقاس وارفع الصور، والبرنامج يرُص الشيتات تلقائيًا مع الحفاظ على الملامح وملء الخانات بأفضل شكل ممكن.</p>
         </div>
         <button id="logoutBtn" class="danger ghost">إلغاء التفعيل</button>
       </section>
@@ -50,13 +50,15 @@
       <section class="card">
         <h2>2) ارفع الصور</h2>
         <input id="fileInput" type="file" accept="image/*" multiple />
+        <div class="hint quality-note">
+          يرجى إرسال الصور كملفات أصلية وليس كصور واتساب مضغوطة للحصول على أفضل جودة طباعة.
+        </div>
         <div class="row">
           <button id="clearBtn" class="ghost">مسح الصور</button>
           <button id="rotateAllBtn" class="ghost">تدوير الصور المحتاجة</button>
         </div>
-        <div class="options">
-          <label><input type="radio" name="fitMode" value="contain" checked> أمان كامل: بدون قص للملامح</label>
-          <label><input type="radio" name="fitMode" value="cover"> ملء الخانة مع قص بسيط</label>
+        <div class="smart-mode-note">
+          الوضع الذكي مفعل تلقائيًا: يحافظ على الوجوه والملامح قدر الإمكان ويملأ الخانة بأفضل توزيع بدون اختيارات معقدة.
         </div>
         <div id="photoList" class="photo-list"></div>
       </section>

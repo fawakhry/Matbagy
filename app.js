@@ -25,6 +25,7 @@ function init(){
 
 function bindEvents(){
   $('activateBtn').addEventListener('click', activate);
+  $('activationCode').addEventListener('keydown', (e) => { if(e.key === 'Enter') activate(); });
   $('logoutBtn').addEventListener('click', () => { localStorage.removeItem('mb_client'); location.reload(); });
   $('notifyBtn').addEventListener('click', requestNotifications);
   qsa('.template').forEach(btn => btn.addEventListener('click', () => selectTemplate(btn.dataset.template)));
@@ -37,26 +38,48 @@ function bindEvents(){
 }
 
 async function activate(){
-  const code = $('activationCode').value.trim();
+  const phone = $('activationCode').value.trim();
   const msg = $('activationMsg');
-  if(!code){ msg.textContent = 'اكتب رقم الهاتف أو كود العميل.'; return; }
-  msg.textContent = 'جاري التحقق...';
+
+  if(!phone){
+    msg.textContent = 'برجاء إدخال رقم الهاتف المسجل لدى مطبعجي بنها.';
+    return;
+  }
+
+  if(!CONFIG.activationEndpoint){
+    msg.textContent = 'رابط التفعيل غير مضبوط. تواصل مع مطبعجي بنها.';
+    return;
+  }
+
+  msg.textContent = 'جاري التحقق من الرقم...';
+
   try{
-    let client = null;
-    if(CONFIG.activationEndpoint){
-      const url = CONFIG.activationEndpoint + '?code=' + encodeURIComponent(code);
-      const res = await fetch(url, { cache:'no-store' });
-      client = await res.json();
-      if(!client || client.active !== true) throw new Error('not-active');
-    }else{
-      const ok = (CONFIG.demoCodes || []).includes(code);
-      if(!ok) throw new Error('demo-code');
-      client = { active:true, name:'عميل تجربة', code, phone: code.startsWith('01') ? code : '' };
+    const url = CONFIG.activationEndpoint + '?phone=' + encodeURIComponent(phone);
+    const res = await fetch(url, { cache:'no-store' });
+    const data = await res.json();
+
+    if(!data || data.success !== true || data.found !== true){
+      throw new Error(data?.message || 'not-active');
     }
+
+    const customer = data.customer || {};
+    const client = {
+      active: true,
+      name: customer.name || 'عميل مطبعجي بنها',
+      manager: customer.manager || '',
+      phone: customer.phone || phone,
+      type: customer.type || '',
+      activatedAt: new Date().toISOString()
+    };
+
     localStorage.setItem('mb_client', JSON.stringify(client));
-    showApp(client);
+    msg.textContent = `أهلاً ${client.name}، تم تفعيل التطبيق بنجاح.`;
+
+    setTimeout(() => showApp(client), 600);
   }catch(e){
-    msg.textContent = 'الكود غير مفعل. راجع مطبعجي بنها.';
+    msg.textContent = e.message && e.message !== 'not-active'
+      ? e.message
+      : 'الرقم غير مسجل أو غير مفعل، برجاء التواصل مع مطبعجي بنها.';
   }
 }
 
@@ -209,23 +232,41 @@ function getRects(tpl, W, H, gap, margin){
 }
 
 function drawImageSmart(ctx, img, rect, rotation, mode){
-  ctx.save(); ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(rect.x, rect.y, rect.w, rect.h);
+  ctx.clip();
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
   const rotated = rotation % 180 !== 0;
   const iw = rotated ? img.naturalHeight : img.naturalWidth;
   const ih = rotated ? img.naturalWidth : img.naturalHeight;
-  const scale = mode === 'cover' ? Math.max(rect.w/iw, rect.h/ih) : Math.min(rect.w/iw, rect.h/ih);
-  const dw = iw * scale, dh = ih * scale;
-  const dx = rect.x + (rect.w - dw)/2, dy = rect.y + (rect.h - dh)/2;
-  ctx.fillStyle='#fff'; ctx.fillRect(rect.x,rect.y,rect.w,rect.h);
-  ctx.translate(dx + dw/2, dy + dh/2);
-  ctx.rotate(rotation * Math.PI/180);
+
+  // Smart mode:
+  // يبدأ بملء الخانة، لكن لو القص كبير جدًا يرجع لوضع آمن يحافظ على الملامح.
+  const containScale = Math.min(rect.w / iw, rect.h / ih);
+  const coverScale = Math.max(rect.w / iw, rect.h / ih);
+  const cropRatio = Math.max(coverScale / containScale, 1);
+  const scale = cropRatio > 1.28 ? containScale : coverScale;
+
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const dx = rect.x + (rect.w - dw) / 2;
+  const dy = rect.y + (rect.h - dh) / 2;
+
+  ctx.translate(dx + dw / 2, dy + dh / 2);
+  ctx.rotate(rotation * Math.PI / 180);
+
   const sx = rotated ? dh : dw;
   const sy = rotated ? dw : dh;
-  ctx.drawImage(img, -sx/2, -sy/2, sx, sy);
+  ctx.drawImage(img, -sx / 2, -sy / 2, sx, sy);
+
   ctx.restore();
 }
 
-function getFitMode(){ return document.querySelector('input[name="fitMode"]:checked').value; }
+function getFitMode(){ return CONFIG.defaultFitMode || 'smart'; }
 function loadImage(src){ return new Promise((res,rej)=>{ const i = new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
 function chunk(arr, n){ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 
@@ -237,7 +278,7 @@ async function shareWork(){
   if(state.outputs.length === 0) return;
   const files = state.outputs.map(o => new File([o.blob], o.name, { type:'image/jpeg' }));
   const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
-  const text = `طلب صور جديد من ${client.name || 'عميل'} - قالب ${templates[state.template].label} - عدد الشيتات ${state.outputs.length}`;
+  const text = `طلب صور جديد من ${client.name || 'عميل'}\nرقم العميل: ${client.phone || ''}\nنوع العميل: ${client.type || ''}\nالقالب: ${templates[state.template].label}\nعدد الشيتات: ${state.outputs.length}`;
   if(navigator.canShare && navigator.canShare({ files })){
     await navigator.share({ title:'طلب صور مطبعجي بنها', text, files });
   }else{
