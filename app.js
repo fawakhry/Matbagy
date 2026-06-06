@@ -194,8 +194,16 @@ function renderPhotoList(){
     const box = card.querySelector('.adjust-box');
     const imgEl = card.querySelector('.adjust-img');
 
+    // عرض الصورة كاملة داخل مربع المعاينة بدون قص مبدئي.
+    // القص السابق كان بسبب cover/scale، فكان العميل يحرك صورة مقصوصة بالفعل.
+    box.style.overflow = 'hidden';
+    imgEl.style.width = '100%';
+    imgEl.style.height = '100%';
+    imgEl.style.objectFit = 'contain';
+    imgEl.style.transformOrigin = 'center center';
+
     const applyTransform = () => {
-      imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(1.12)`;
+      imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(1)`;
     };
 
     const invalidateSheets = () => {
@@ -402,6 +410,11 @@ function getRects(tpl, W, H, gap, margin){
 
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.save();
+
+  // الخانة نفسها تظل بمقاس الطباعة، لكن الصورة لا يتم قصها تلقائيًا.
+  // الحل هنا هو CONTAIN بدل COVER:
+  // - Cover = يملأ الخانة ويقص أجزاء من الصورة.
+  // - Contain = يظهر الصورة كاملة وقد يترك فراغ أبيض بسيط لو النسبة مختلفة.
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
@@ -410,47 +423,56 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
   const rotated = rotation % 180 !== 0;
-  const iw = rotated ? img.naturalHeight : img.naturalWidth;
-  const ih = rotated ? img.naturalWidth : img.naturalHeight;
+  const sourceW = img.naturalWidth;
+  const sourceH = img.naturalHeight;
 
-  const scale = Math.max(rect.w / iw, rect.h / ih);
-  const dw = iw * scale;
-  const dh = ih * scale;
+  // أبعاد الصورة بعد الدوران بالنسبة للخانة.
+  const effectiveW = rotated ? sourceH : sourceW;
+  const effectiveH = rotated ? sourceW : sourceH;
 
-  let dx = rect.x + (rect.w - dw) / 2;
-  let dy = rect.y + (rect.h - dh) / 2;
+  // لا نقص الصورة: نستخدم أصغر Scale عشان الصورة كلها تدخل داخل الخانة.
+  const scale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
 
-  if(ih > iw && dh > rect.h){
-    dy = rect.y - Math.min((dh - rect.h) * 0.22, dh - rect.h);
-  }
+  const drawW = sourceW * scale;
+  const drawH = sourceH * scale;
+
+  // مركز الخانة.
+  let centerX = rect.x + rect.w / 2;
+  let centerY = rect.y + rect.h / 2;
 
   // تحويل سحب العميل من معاينة صغيرة إلى الشيت النهائي.
-  // كل 1px في المعاينة يتحول إلى نسبة من عرض/ارتفاع الخانة.
+  // التحريك هنا اختياري، ومع وضع عدم القص لن يقطع الصورة من المصدر.
   const previewBox = 118;
   const userOffsetX = Number(photo.offsetX || 0);
   const userOffsetY = Number(photo.offsetY || 0);
-  dx += (userOffsetX / previewBox) * rect.w;
-  dy += (userOffsetY / previewBox) * rect.h;
+  centerX += (userOffsetX / previewBox) * rect.w;
+  centerY += (userOffsetY / previewBox) * rect.h;
 
-  // منع ظهور فراغات قدر الإمكان عند السحب.
-  if(dw > rect.w){
-    dx = Math.min(rect.x, Math.max(rect.x + rect.w - dw, dx));
+  // منع خروج الصورة بالكامل خارج الخانة. نسمح بهوامش بيضاء عند اختلاف النسبة.
+  const halfEffectiveW = (rotated ? drawH : drawW) / 2;
+  const halfEffectiveH = (rotated ? drawW : drawH) / 2;
+
+  const minCenterX = rect.x + Math.min(rect.w / 2, halfEffectiveW);
+  const maxCenterX = rect.x + rect.w - Math.min(rect.w / 2, halfEffectiveW);
+  const minCenterY = rect.y + Math.min(rect.h / 2, halfEffectiveH);
+  const maxCenterY = rect.y + rect.h - Math.min(rect.h / 2, halfEffectiveH);
+
+  if(minCenterX <= maxCenterX){
+    centerX = Math.min(maxCenterX, Math.max(minCenterX, centerX));
   }else{
-    dx = rect.x + (rect.w - dw) / 2;
+    centerX = rect.x + rect.w / 2;
   }
 
-  if(dh > rect.h){
-    dy = Math.min(rect.y, Math.max(rect.y + rect.h - dh, dy));
+  if(minCenterY <= maxCenterY){
+    centerY = Math.min(maxCenterY, Math.max(minCenterY, centerY));
   }else{
-    dy = rect.y + (rect.h - dh) / 2;
+    centerY = rect.y + rect.h / 2;
   }
 
-  ctx.translate(dx + dw/2, dy + dh/2);
-  ctx.rotate(rotation * Math.PI/180);
+  ctx.translate(centerX, centerY);
+  ctx.rotate(rotation * Math.PI / 180);
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
 
-  const drawW = rotated ? dh : dw;
-  const drawH = rotated ? dw : dh;
-  ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
   ctx.restore();
 }
 
