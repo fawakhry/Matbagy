@@ -1,6 +1,6 @@
 const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
-let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
+let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
 
 const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v100';
 
@@ -112,8 +112,19 @@ function bindEvents(){
   $('clearBtn').addEventListener('click', clearPhotos);
   $('rotateAllBtn').addEventListener('click', autoRotateAll);
   $('generateBtn').addEventListener('click', generateSheets);
-  $('downloadBtn').addEventListener('click', downloadAll);
-  $('shareBtn').addEventListener('click', shareWork);
+
+  const downloadBtn = $('downloadBtn');
+  const shareBtn = $('shareBtn');
+
+  downloadBtn.onclick = async (e) => {
+    e.preventDefault();
+    await downloadAll();
+  };
+
+  shareBtn.onclick = async (e) => {
+    e.preventDefault();
+    await shareWork();
+  };
 }
 
 async function activate(){
@@ -785,6 +796,9 @@ function getReviewSummaryText(){
 }
 
 function showSendReviewModal(){
+  if(state.reviewOpen) return Promise.resolve(false);
+  state.reviewOpen = true;
+
   return new Promise((resolve)=>{
     const s = getReviewSummaryText();
 
@@ -825,6 +839,7 @@ function showSendReviewModal(){
     document.body.appendChild(backdrop);
 
     const close = (value) => {
+      state.reviewOpen = false;
       backdrop.remove();
       resolve(value);
     };
@@ -893,7 +908,50 @@ function blobToBase64(blob){
 }
 
 
+
+async function buildCleanZipFile(outputs, order){
+  if(!window.JSZip){
+    return null;
+  }
+
+  const zip = new JSZip();
+
+  outputs.forEach((o)=>{
+    zip.file(o.name, o.blob);
+  });
+
+  const tpl = templates[state.template];
+  const orderId = order?.orderId ? cleanFilePart(order.orderId) : 'NO_ORDER';
+  const name = `${orderId}_Matbagy_Banha_${cleanFilePart(tpl.label)}_${outputs.length}Sheets_CLEAN_HD_300DPI_${getTimestampForFile()}.zip`;
+
+  const blob = await zip.generateAsync({
+    type:'blob',
+    compression:'DEFLATE',
+    compressionOptions:{ level:6 }
+  });
+
+  return new File([blob], name, { type:'application/zip' });
+}
+
+function downloadBlobFile(file){
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+
 async function shareWork(){
+  if(state.isSending){
+    $('status').textContent = 'جاري تجهيز الإرسال بالفعل، انتظر لحظات...';
+    return;
+  }
+
   if(state.photos.length === 0){
     $('status').textContent = 'ارفع الصور أولاً.';
     return;
@@ -907,6 +965,12 @@ async function shareWork(){
   const approved = await showSendReviewModal();
   if(!approved) return;
 
+  state.isSending = true;
+  const shareBtn = $('shareBtn');
+  const oldText = shareBtn.textContent;
+  shareBtn.disabled = true;
+  shareBtn.textContent = 'جاري التجهيز...';
+
   try{
     $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة النظيفة HD 300DPI...';
 
@@ -915,11 +979,7 @@ async function shareWork(){
     // النسخة المرسلة للمطبعة نظيفة بدون Watermark وبجودة 300DPI من الصور الأصلية.
     state.cleanOutputs = await buildOutputs(false);
 
-    const files = state.cleanOutputs.map(o =>
-      new File([o.blob], o.name, { type:'image/png' })
-    );
-
-    const client = JSON.parse(localStorage.getItem('mb_client') || {});
+    const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
     const uploadResult = await tryUploadCleanOutputsToBrowserEndpoint(order, state.cleanOutputs).catch((err)=>{
       console.warn('Browser upload failed or not configured:', err);
       return null;
@@ -949,22 +1009,8 @@ async function shareWork(){
       uploadedLinksText
     ].join('\n');
 
-    $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId} وتجهيز نسخة HD نظيفة.`;
-
-    // الحل الأول: Web Share API - إرسال ملفات من المتصفح مباشرة لو الجهاز يدعم.
-    if(navigator.canShare && navigator.canShare({ files })){
-      await navigator.share({
-        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
-        text,
-        files
-      });
-      $('status').textContent = 'تم فتح مشاركة الملفات من المتصفح. تأكد من إرسالها كـ Document / ملف.';
-      return;
-    }
-
-    // الحل الثاني: لو فيه رفع للمتصفح uploadEndpoint، نفتح واتساب بالروابط فقط.
     if(uploadResult?.links?.length){
-      const phone = (CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
+      const phone = (CONFIG.whatsappNumber || '').replace(/[^\\d]/g, '');
       const waUrl = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
         : `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -974,29 +1020,62 @@ async function shareWork(){
       return;
     }
 
-    // الحل الثالث: fallback مضمون - تحميل الملفات وفتح واتساب برسالة.
-    state.cleanOutputs.forEach(o=>{
-      const a = document.createElement('a');
-      a.href = o.url;
-      a.download = o.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
+    // الأفضل للموبايل: ملف ZIP واحد لكل الشيتات.
+    const zipFile = await buildCleanZipFile(state.cleanOutputs, order);
+
+    if(zipFile && navigator.canShare && navigator.canShare({ files:[zipFile] })){
+      await navigator.share({
+        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
+        text,
+        files:[zipFile]
+      });
+
+      $('status').textContent = 'تم فتح مشاركة ملف ZIP من المتصفح. أرسله كـ Document / ملف.';
+      return;
+    }
+
+    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/png' }));
+
+    if(navigator.canShare && navigator.canShare({ files })){
+      await navigator.share({
+        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
+        text,
+        files
+      });
+
+      $('status').textContent = 'تم فتح مشاركة الملفات من المتصفح. أرسلها كـ Document / ملف.';
+      return;
+    }
+
+    if(zipFile){
+      downloadBlobFile(zipFile);
+    }else{
+      state.cleanOutputs.forEach(o=>{
+        const file = new File([o.blob], o.name, { type:'image/png' });
+        downloadBlobFile(file);
+      });
+    }
 
     alert(
       'تم تحميل ملفات الطباعة النظيفة HD 300DPI ✅\n\n' +
-      'مهم جدًا: أرسل الملفات على واتساب كـ Document / ملف، وليس كصور.'
+      'مهم جدًا: افتح واتساب وأرسل ملف ZIP أو الملفات كـ Document / ملف، وليس كصور.'
     );
 
-    const phone = (CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
+    const phone = (CONFIG.whatsappNumber || '').replace(/[^\\d]/g, '');
     const waUrl = phone
       ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`;
 
     window.open(waUrl, '_blank');
+
+    $('status').textContent = 'تم تحميل ملف الطباعة وفتح واتساب. أرفق الملف كـ Document.';
   }catch(e){
+    console.error(e);
     $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.';
+  }finally{
+    state.isSending = false;
+    shareBtn.disabled = false;
+    shareBtn.textContent = oldText;
   }
 }
 
