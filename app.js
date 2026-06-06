@@ -166,6 +166,7 @@ function clearPhotos(){
   state.photos = []; state.outputs = []; state.cleanOutputs = []; state.order = null;
   $('preview').innerHTML = ''; $('fileInput').value = '';
   $('downloadBtn').classList.add('hidden'); $('shareBtn').classList.add('hidden');
+  if($('printFileNote')) $('printFileNote').classList.add('hidden');
   renderPhotoList();
 }
 
@@ -204,6 +205,7 @@ function renderPhotoList(){
       $('preview').innerHTML = '';
       $('downloadBtn').classList.add('hidden');
       $('shareBtn').classList.add('hidden');
+      if($('printFileNote')) $('printFileNote').classList.add('hidden');
       $('status').textContent = 'تم تعديل موضع صورة. اضغط إنشاء الشيتات مرة أخرى.';
     };
 
@@ -323,8 +325,9 @@ async function generateSheets(){
     box.innerHTML = `<img src="${o.url}"><a download="${o.name}" href="${o.url}">تحميل معاينة ${o.name}</a>`;
     $('preview').appendChild(box);
   });
-  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة تُجهز عند الإرسال لمطبعجي بنها.`;
+  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. ملف الطباعة PDF النظيف جاهز للتحميل أو الإرسال.`;
   $('downloadBtn').classList.remove('hidden'); $('shareBtn').classList.remove('hidden');
+  if($('printFileNote')) $('printFileNote').classList.remove('hidden');
 }
 
 async function buildOutputs(withWatermark){
@@ -453,11 +456,114 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
 
 function loadImage(src){ return new Promise((res,rej)=>{ const i = new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
 function chunk(arr, n){ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
-function downloadAll(){ state.outputs.forEach(o=>{ const a=document.createElement('a'); a.href=o.url; a.download=o.name; a.click(); }); }
+
+function getClient(){
+  try{
+    return JSON.parse(localStorage.getItem('mb_client') || '{}');
+  }catch(e){
+    return {};
+  }
+}
+
+function safeFilePart(value){
+  return String(value || '')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '_')
+    .trim() || 'Client';
+}
+
+function timeStamp(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}${m}${day}_${h}${min}`;
+}
+
+async function buildPrintCanvases(){
+  const tpl = templates[state.template];
+  const chunks = chunk(state.photos, tpl.count);
+  const canvases = [];
+
+  for(const group of chunks){
+    canvases.push(await drawSheet(group, tpl, false));
+  }
+
+  return canvases;
+}
+
+async function buildPrintPdfBlob(orderId = ''){
+  if(state.photos.length === 0){
+    throw new Error('ارفع الصور أولاً.');
+  }
+
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    throw new Error('مكتبة PDF لم يتم تحميلها. تأكد من اتصال الإنترنت ثم جرب مرة أخرى.');
+  }
+
+  const jsPDF = window.jspdf.jsPDF;
+  const canvases = await buildPrintCanvases();
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [297, 450],
+    compress: false
+  });
+
+  canvases.forEach((canvas, index) => {
+    if(index > 0) pdf.addPage([297, 450], 'portrait');
+    const imgData = canvas.toDataURL('image/png', 1.0);
+    pdf.addImage(imgData, 'PNG', 0, 0, 297, 450, undefined, 'FAST');
+  });
+
+  const client = getClient();
+  const orderPart = orderId ? `_${safeFilePart(orderId)}` : '';
+  const fileName = `Matbagy_Banha_Print${orderPart}_${safeFilePart(client.name)}_${templates[state.template].label}_${timeStamp()}.pdf`;
+
+  return {
+    blob: pdf.output('blob'),
+    fileName
+  };
+}
+
+async function downloadPdfFile(orderId = ''){
+  const pdf = await buildPrintPdfBlob(orderId);
+  const url = URL.createObjectURL(pdf.blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = pdf.fileName;
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1200);
+
+  return pdf;
+}
+
+async function downloadAll(){
+  if(state.outputs.length === 0){
+    $('status').textContent = 'اضغط إنشاء الشيتات أولاً.';
+    return;
+  }
+
+  try{
+    $('status').textContent = 'جاري تجهيز ملف PDF بجودة الطباعة...';
+    await downloadPdfFile('');
+    $('status').textContent = 'تم تحميل ملف الطباعة PDF. أرسله كـ Document / ملف وليس كصورة.';
+  }catch(e){
+    $('status').textContent = e.message || 'حدث خطأ أثناء تجهيز ملف PDF.';
+  }
+}
 
 async function ensureOrderCreated(){
   if(state.order?.orderId) return state.order;
-  const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
+  const client = getClient();
   if(!CONFIG.activationEndpoint) throw new Error('رابط النظام غير مضبوط.');
   const params = new URLSearchParams({ action:'createOrder', phone:client.phone || '', customerName:client.name || '', customerType:client.type || '', template:templates[state.template].label, photoCount:String(state.photos.length), sheetCount:String(state.outputs.length) });
   const res = await fetch(CONFIG.activationEndpoint + '?' + params.toString(), { cache: 'no-store' });
@@ -466,20 +572,61 @@ async function ensureOrderCreated(){
   state.order = data; return data;
 }
 
-async function shareWork(){
-  if(state.outputs.length === 0) return;
-  try{
-    $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة...';
-    const order = await ensureOrderCreated();
-    state.cleanOutputs = await buildOutputs(false);
-    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/jpeg' }));
-    const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
-    const text = `طلب صور جديد من ${client.name || 'عميل'}\nرقم الطلب: ${order.orderId}\nرقم العميل: ${client.phone || ''}\nنوع العميل: ${client.type || ''}\nالقالب: ${templates[state.template].label}\nعدد الصور: ${state.photos.length}\nعدد الشيتات: ${state.outputs.length}`;
-    $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId}`;
-    if(navigator.canShare && navigator.canShare({ files })) await navigator.share({ title:'طلب صور مطبعجي بنها', text, files });
-    else window.open(`https://wa.me/${CONFIG.whatsappNumber || ''}?text=${encodeURIComponent(text + '\nتم إنشاء الطلب من التطبيق. سيتم إرسال الملفات الآن.')}`, '_blank');
-  }catch(e){ $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.'; }
+function openWhatsAppMessage(text){
+  const phone = String(CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
 }
+
+async function shareWork(){
+  if(state.outputs.length === 0){
+    $('status').textContent = 'اضغط إنشاء الشيتات أولاً.';
+    return;
+  }
+
+  try{
+    $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز ملف PDF للطباعة...';
+    const order = await ensureOrderCreated();
+    const client = getClient();
+    const pdf = await buildPrintPdfBlob(order.orderId);
+    const file = new File([pdf.blob], pdf.fileName, { type:'application/pdf' });
+
+    const text = [
+      `طلب صور جديد من ${client.name || 'عميل'}`,
+      `رقم الطلب: ${order.orderId}`,
+      `رقم العميل: ${client.phone || ''}`,
+      `نوع العميل: ${client.type || ''}`,
+      `القالب: ${templates[state.template].label}`,
+      `عدد الصور: ${state.photos.length}`,
+      `عدد الشيتات: ${state.outputs.length}`,
+      '',
+      'تم تجهيز ملف PDF بجودة الطباعة.',
+      'مهم جدًا: أرسل ملف الـ PDF كـ Document / ملف وليس كصورة.'
+    ].join('\n');
+
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId}. اختار واتساب وأرسل ملف PDF كـ Document.`;
+      await navigator.share({ title:'طلب صور مطبعجي بنها', text, files:[file] });
+      return;
+    }
+
+    await downloadPdfFile(order.orderId);
+    $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId}. تم تحميل PDF، أرفقه في واتساب كـ Document / ملف.`;
+
+    alert(
+      'تم تحميل ملف الطباعة PDF ✅\n\n' +
+      'افتح واتساب الآن وأرفق الملف الذي تم تحميله كـ Document / ملف، وليس كصورة.\n\n' +
+      `رقم الطلب: ${order.orderId}`
+    );
+
+    openWhatsAppMessage(text);
+  }catch(e){
+    $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.';
+  }
+}
+
 
 async function requestNotifications(){
   if(!('Notification' in window)){ alert('الإشعارات غير مدعومة على هذا الجهاز.'); return; }
