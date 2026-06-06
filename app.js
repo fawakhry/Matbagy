@@ -206,12 +206,12 @@ function renderPhotoList(){
       zoomRange.style.flex = '1';
     }
 
-    // المعاينة هنا تمثل مقاس الطباعة الحقيقي: الخانة تفضل ممتلئة بالمقاس.
-    // الصورة الأصلية لا تُقص من الملف، لكن يتم قص العرض فقط داخل إطار المقاس مثل الطباعة.
+    // المعاينة هنا لا تقص الصورة تلقائيًا.
+    // الصورة تظهر كاملة افتراضيًا، والزوم/التحريك يكون باختيار العميل فقط.
     box.style.overflow = 'hidden';
     imgEl.style.width = '100%';
     imgEl.style.height = '100%';
-    imgEl.style.objectFit = 'cover';
+    imgEl.style.objectFit = 'contain';
     imgEl.style.transformOrigin = 'center center';
 
     const applyTransform = () => {
@@ -501,8 +501,9 @@ function getRects(tpl, W, H, gap, margin){
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.save();
 
-  // الخانة تظل بمقاس الطباعة الحقيقي وتكون ممتلئة بالكامل.
-  // لا نقص من ملف الصورة الأصلي؛ القص هنا قص عرض داخل إطار الخانة فقط مثل الطباعة.
+  // الخانة تظل بمقاس الطباعة الحقيقي.
+  // الصورة تظهر كاملة افتراضيًا بدون أي قص تلقائي.
+  // أي قص يحصل بعد ذلك يكون بسبب Zoom In يختاره العميل فقط.
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
@@ -518,9 +519,11 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const effectiveW = rotated ? sourceH : sourceW;
   const effectiveH = rotated ? sourceW : sourceH;
 
-  // للحفاظ على مقاس 10×15 / 6×9 الحقيقي، لازم الصورة تملأ الخانة بالكامل.
-  // لذلك نستخدم COVER كأساس، والزوم يبدأ من 1 ولا يسمح بتصغير يسبب فراغات بيضاء.
-  const baseScale = Math.max(rect.w / effectiveW, rect.h / effectiveH);
+  // الوضع الافتراضي NO AUTO CROP:
+  // نستخدم CONTAIN كأساس حتى تظهر الصورة كاملة داخل خانة الطباعة.
+  // قد تظهر حواف/فراغات بيضاء إذا كانت نسبة الصورة مختلفة عن مقاس الطباعة.
+  // عند تكبير العميل يدويًا فقط، قد يتم قص جزء داخل الإطار حسب اختياره.
+  const baseScale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
   const userZoom = Math.min(3, Math.max(1, Number(photo.zoom || 1)));
   const scale = baseScale * userZoom;
 
@@ -539,7 +542,8 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   centerX += (userOffsetX / previewBox) * rect.w;
   centerY += (userOffsetY / previewBox) * rect.h;
 
-  // منع ظهور فراغات بيضاء داخل الخانة عند التحريك.
+  // ضبط التحريك: إذا الصورة أصغر من الخانة في اتجاه معين تظل في المنتصف.
+  // إذا كبرها العميل بالزوم، نسمح بالتحريك داخل حدود الإطار.
   const halfEffectiveW = (rotated ? drawH : drawW) / 2;
   const halfEffectiveH = (rotated ? drawW : drawH) / 2;
 
