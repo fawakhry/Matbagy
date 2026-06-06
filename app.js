@@ -15,10 +15,17 @@ init();
 
 function getDeviceId(){
   let id = localStorage.getItem('mb_device_id');
-  if(!id){
-    id = 'DEV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+
+  if(!id || id === 'TEST-NEW' || id === 'TEST-PC' || id === 'test123'){
+    if(window.crypto && crypto.randomUUID){
+      id = 'DEV-' + crypto.randomUUID();
+    }else{
+      id = 'DEV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 14);
+    }
+
     localStorage.setItem('mb_device_id', id);
   }
+
   return id;
 }
 
