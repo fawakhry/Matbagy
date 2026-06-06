@@ -75,3 +75,64 @@
   color:#64748b;
   text-align:center;
 }
+
+/* V71 - إصلاح سحب الصورة على الموبايل والماوس */
+.adjustable-card{
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.adjust-box{
+  width:100%;
+  height:118px;
+  overflow:hidden;
+  border-radius:12px;
+  background:#fff;
+  border:2px dashed #cbd5e1;
+  touch-action:none !important;
+  -ms-touch-action:none !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:grab;
+  position:relative;
+}
+
+.adjust-box.dragging{
+  cursor:grabbing;
+  border-color:#0f766e;
+  box-shadow:0 0 0 3px rgba(15,118,110,.16);
+}
+
+.adjust-img,
+.photo-card .adjust-img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover !important;
+  border-radius:10px;
+  will-change:transform;
+  pointer-events:none;
+  transform-origin:center center;
+}
+
+.adjust-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:6px;
+}
+
+.adjust-actions button{
+  width:100%;
+  padding:8px;
+  font-size:12px;
+}
+
+.drag-hint{
+  margin-top:6px;
+  font-size:11px;
+  line-height:1.4;
+  color:#64748b;
+  text-align:center;
+}
+
