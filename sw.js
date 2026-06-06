@@ -1,4 +1,4 @@
-const CACHE = 'motabagy-photo-client-v81';
+const CACHE = 'motabagy-photo-client-v82';
 
 const ASSETS = [
   './',

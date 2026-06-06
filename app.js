@@ -42,14 +42,62 @@ function forceReloginIfNeeded(){
   }
 }
 
-function init(){
+
+async function checkSavedClientOnServer(client){
+  const msg = $('activationMsg');
+
+  if(!CONFIG.activationEndpoint || !client || !client.phone){
+    localStorage.removeItem('mb_client');
+    return false;
+  }
+
+  try{
+    const deviceId = getDeviceId();
+    const url =
+      CONFIG.activationEndpoint +
+      '?action=checkSession' +
+      '&phone=' + encodeURIComponent(client.phone) +
+      '&deviceId=' + encodeURIComponent(deviceId);
+
+    const res = await fetch(url, { cache:'no-store' });
+    const data = await res.json();
+
+    if(!data || data.success !== true){
+      localStorage.removeItem('mb_client');
+      if(msg){
+        msg.textContent = data?.message || 'تم إنهاء الجلسة. برجاء التفعيل من جديد.';
+      }
+      return false;
+    }
+
+    return true;
+  }catch(e){
+    // لو الإنترنت فصل، لا نطرد العميل فورًا عشان التطبيق يفضل قابل للاستخدام مؤقتًا.
+    return true;
+  }
+}
+
+async function init(){
   forceReloginIfNeeded();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+
   bindEvents();
+
   const saved = localStorage.getItem('mb_client');
+
   if(saved){
     const client = JSON.parse(saved);
-    showApp(client);
+    const ok = await checkSavedClientOnServer(client);
+
+    if(ok){
+      showApp(client);
+    }else{
+      $('activationView').classList.remove('hidden');
+      $('appView').classList.add('hidden');
+    }
   }
 }
 
