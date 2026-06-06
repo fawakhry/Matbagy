@@ -257,6 +257,10 @@ function renderPhotoList(){
 
       slider.value = String(p.zoom);
       zoomValue.textContent = `${Math.round(p.zoom * 100)}%`;
+
+      try{
+        p.adjustedDataUrl = canvas.toDataURL('image/png');
+      }catch(e){}
     }
 
     function invalidateSheets(){
@@ -425,6 +429,7 @@ async function generateSheets(){
   }
 
   $('status').textContent = 'جاري إنشاء شيتات المعاينة بعلامة مطبعجي بنها...';
+  await new Promise(resolve => setTimeout(resolve, 200));
   $('preview').innerHTML = '';
   state.outputs = [];
   state.cleanOutputs = [];
@@ -503,6 +508,39 @@ function dataUrlToBlob(dataUrl){
   return new Blob([arr], { type:mime });
 }
 
+
+async function getAdjustedImageForSheet(photo){
+  if(photo.adjustedDataUrl){
+    return await loadImage(photo.adjustedDataUrl);
+  }
+
+  // fallback: لو لسبب ما مفيش معاينة محفوظة، ارسمها الآن على Canvas بنفس المقاس.
+  ensurePhotoDefaults(photo);
+  const size = { w: photo.previewW || getPreviewFrameSize().w, h: photo.previewH || getPreviewFrameSize().h };
+  const tmp = document.createElement('canvas');
+  tmp.width = size.w;
+  tmp.height = size.h;
+  const tctx = tmp.getContext('2d');
+  const img = photo.img || await loadImage(photo.url);
+  photo.img = img;
+  drawImageSmart(tctx, img, { x:0, y:0, w:tmp.width, h:tmp.height }, Number(photo.rotation || 0), photo);
+  photo.adjustedDataUrl = tmp.toDataURL('image/png');
+  return await loadImage(photo.adjustedDataUrl);
+}
+
+function drawAdjustedCanvasIntoRect(ctx, adjustedImg, rect){
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.beginPath();
+  ctx.rect(rect.x, rect.y, rect.w, rect.h);
+  ctx.clip();
+  // هنا نرسم معاينة الصورة كما ضبطها العميل كاملة داخل الخانة بدون إعادة حساب زوم أو قص.
+  ctx.drawImage(adjustedImg, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
+
+
 async function drawSheet(photos, tpl, withWatermark=true){
   const dpi = CONFIG.dpi || 200;
   const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
@@ -525,11 +563,17 @@ async function drawSheet(photos, tpl, withWatermark=true){
     const photo = photos[i];
 
     try{
-      const img = photo.img || await loadImage(photo.url);
-      photo.img = img;
-      const rotation = rect.forceRotate ? 90 : Number(photo.rotation || 0);
+      const adjustedImg = await getAdjustedImageForSheet(photo);
 
-      drawImageSmart(ctx, img, rect, rotation, photo);
+      if(rect.forceRotate){
+        ctx.save();
+        ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(adjustedImg, -rect.h / 2, -rect.w / 2, rect.h, rect.w);
+        ctx.restore();
+      }else{
+        drawAdjustedCanvasIntoRect(ctx, adjustedImg, rect);
+      }
 
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = Math.max(1, Math.round(dpi/180));
