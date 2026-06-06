@@ -465,7 +465,7 @@ async function generateSheets(){
     $('preview').appendChild(box);
   });
 
-  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة تُجهز عند الإرسال لمطبعجي بنها.`;
+  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة HD 300DPI تُجهز فقط عند التحميل أو الإرسال.`;
   $('downloadBtn').classList.remove('hidden');
   $('shareBtn').classList.remove('hidden');
 }
@@ -488,7 +488,7 @@ async function buildOutputs(withWatermark){
       blob = await dataUrlToBlob(url);
     }
 
-    const suffix = withWatermark ? '_Preview' : '_Print';
+    const suffix = withWatermark ? '_Preview_Watermark' : '_CLEAN_HD_300DPI_Print';
     const name = `Motabagy_${tpl.label}_Sheet_${String(i+1).padStart(3,'0')}${suffix}.png`;
 
     outputs.push({ blob, url, name, canvas });
@@ -511,7 +511,7 @@ function dataUrlToBlob(dataUrl){
 
 async function drawSheet(photos, tpl, withWatermark=true){
   // v105: جودة طباعة حقيقية. الشيت النهائي يرسم من الصورة الأصلية، وليس من معاينة صغيرة.
-  const dpi = CONFIG.dpi || 300;
+  const dpi = 300;
   const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
   const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
   const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
@@ -668,7 +668,30 @@ function loadImage(src){
 }
 
 function chunk(arr, n){ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
-function downloadAll(){ state.outputs.forEach(o=>{ const a=document.createElement('a'); a.href=o.url; a.download=o.name; a.click(); }); }
+async function downloadAll(){
+  if(state.photos.length === 0){
+    $('status').textContent = 'ارفع الصور أولاً.';
+    return;
+  }
+
+  try{
+    $('status').textContent = 'جاري تجهيز ملفات الطباعة النظيفة HD 300DPI...';
+    state.cleanOutputs = await buildOutputs(false);
+
+    state.cleanOutputs.forEach(o=>{
+      const a = document.createElement('a');
+      a.href = o.url;
+      a.download = o.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    $('status').textContent = `تم تحميل ${state.cleanOutputs.length} ملف طباعة نظيف HD 300DPI بدون علامة مائية.`;
+  }catch(e){
+    $('status').textContent = e.message || 'حدث خطأ أثناء تجهيز ملفات الطباعة النظيفة.';
+  }
+}
 
 async function ensureOrderCreated(){
   if(state.order?.orderId) return state.order;
@@ -682,18 +705,73 @@ async function ensureOrderCreated(){
 }
 
 async function shareWork(){
-  if(state.outputs.length === 0) return;
+  if(state.photos.length === 0){
+    $('status').textContent = 'ارفع الصور أولاً.';
+    return;
+  }
+
   try{
-    $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة...';
+    $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة النظيفة HD 300DPI...';
+
     const order = await ensureOrderCreated();
+
+    // مهم: النسخة المرسلة للمطبعة نظيفة بدون Watermark وبجودة 300DPI من الصور الأصلية.
     state.cleanOutputs = await buildOutputs(false);
-    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/png' }));
+
+    const files = state.cleanOutputs.map(o =>
+      new File([o.blob], o.name, { type:'image/png' })
+    );
+
     const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
-    const text = `طلب صور جديد من ${client.name || 'عميل'}\nرقم الطلب: ${order.orderId}\nرقم العميل: ${client.phone || ''}\nنوع العميل: ${client.type || ''}\nالقالب: ${templates[state.template].label}\nعدد الصور: ${state.photos.length}\nعدد الشيتات: ${state.outputs.length}`;
-    $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId}`;
-    if(navigator.canShare && navigator.canShare({ files })) await navigator.share({ title:'طلب صور مطبعجي بنها', text, files });
-    else window.open(`https://wa.me/${CONFIG.whatsappNumber || ''}?text=${encodeURIComponent(text + '\nتم إنشاء الطلب من التطبيق. سيتم إرسال الملفات الآن.')}`, '_blank');
-  }catch(e){ $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.'; }
+
+    const text = [
+      `طلب صور جديد من ${client.name || 'عميل'}`,
+      `رقم الطلب: ${order.orderId}`,
+      `رقم العميل: ${client.phone || ''}`,
+      `نوع العميل: ${client.type || ''}`,
+      `القالب: ${templates[state.template].label}`,
+      `عدد الصور: ${state.photos.length}`,
+      `عدد الشيتات: ${state.cleanOutputs.length}`,
+      '',
+      'تم تجهيز نسخة طباعة نظيفة بدون علامة مائية.',
+      'الجودة: HD 300DPI.',
+      'مهم: تُرسل الملفات كـ Document / ملف وليس كصور مضغوطة.'
+    ].join('\n');
+
+    $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId} وتجهيز نسخة HD نظيفة.`;
+
+    if(navigator.canShare && navigator.canShare({ files })){
+      await navigator.share({
+        title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
+        text,
+        files
+      });
+    }else{
+      // fallback: تحميل الملفات النظيفة ثم فتح واتساب برسالة جاهزة
+      state.cleanOutputs.forEach(o=>{
+        const a = document.createElement('a');
+        a.href = o.url;
+        a.download = o.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+
+      alert(
+        'تم تحميل ملفات الطباعة النظيفة HD 300DPI ✅\n\n' +
+        'مهم جدًا: أرسل الملفات على واتساب كـ Document / ملف، وليس كصور.'
+      );
+
+      const phone = (CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
+      const waUrl = phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+      window.open(waUrl, '_blank');
+    }
+  }catch(e){
+    $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.';
+  }
 }
 
 async function requestNotifications(){
