@@ -2,7 +2,7 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
 
-const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v81';
+const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v82';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
