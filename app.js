@@ -220,6 +220,7 @@ function renderPhotoList(){
       <div class="adjust-actions">
         <button type="button" class="rotate-btn">تدوير 90°</button>
         <button type="button" class="reset-btn">توسيط</button>
+        <button type="button" class="fill-btn">ملء المقاس</button>
       </div>
 
       <div class="drag-hint">الصورة تبدأ كاملة بدون قص. اسحب الصورة بالماوس أو بالإصبع، واستخدم الزوم قبل إنشاء الشيت.</div>
@@ -331,6 +332,19 @@ function renderPhotoList(){
       drawPreview();
       invalidateSheets();
     });
+
+    const fillBtn = card.querySelector('.fill-btn');
+    if(fillBtn){
+      fillBtn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        p.offsetX = 0;
+        p.offsetY = 0;
+        p.zoom = getRequiredFillZoom(p);
+        drawPreview();
+        invalidateSheets();
+      });
+    }
 
     // ===== Drag mouse/touch =====
     let dragging = false;
@@ -489,7 +503,9 @@ async function buildOutputs(withWatermark){
     }
 
     const suffix = withWatermark ? '_Preview_Watermark' : '_CLEAN_HD_300DPI_Print';
-    const name = `Motabagy_${tpl.label}_Sheet_${String(i+1).padStart(3,'0')}${suffix}.png`;
+    const stamp = getTimestampForFile();
+    const orderPart = state.order?.orderId ? cleanFilePart(state.order.orderId) + '_' : '';
+    const name = `${orderPart}Matbagy_Banha_${cleanFilePart(tpl.label)}_Sheet_${String(i+1).padStart(3,'0')}${suffix}_${stamp}.png`;
 
     outputs.push({ blob, url, name, canvas });
   }
@@ -687,7 +703,7 @@ async function downloadAll(){
       a.remove();
     });
 
-    $('status').textContent = `تم تحميل ${state.cleanOutputs.length} ملف طباعة نظيف HD 300DPI بدون علامة مائية.`;
+    $('status').textContent = `تم تحميل ${state.cleanOutputs.length} ملف طباعة نظيف HD 300DPI بدون علامة مائية. أرسلها كـ Document / ملف فقط.`;
   }catch(e){
     $('status').textContent = e.message || 'حدث خطأ أثناء تجهيز ملفات الطباعة النظيفة.';
   }
@@ -704,71 +720,280 @@ async function ensureOrderCreated(){
   state.order = data; return data;
 }
 
+
+function getRequiredFillZoom(photo){
+  const tpl = templates[state.template] || templates['6x9'];
+  const frameRatio = tpl.wCm / tpl.hCm;
+  const img = photo.img;
+  if(!img) return 1.01;
+
+  const r = ((Number(photo.rotation || 0) % 360) + 360) % 360;
+  const rotated90 = r === 90 || r === 270;
+  const iw = rotated90 ? (img.naturalHeight || img.height) : (img.naturalWidth || img.width);
+  const ih = rotated90 ? (img.naturalWidth || img.width) : (img.naturalHeight || img.height);
+  if(!iw || !ih) return 1.01;
+
+  const imageRatio = iw / ih;
+
+  // zoom المطلوب لتحويل contain إلى cover بدون تمديد.
+  let zoom = 1;
+  if(imageRatio > frameRatio){
+    // الصورة أعرض من الخانة: تحتاج تكبير حسب الارتفاع.
+    zoom = imageRatio / frameRatio;
+  }else{
+    // الصورة أطول من الخانة: تحتاج تكبير حسب العرض.
+    zoom = frameRatio / imageRatio;
+  }
+
+  return Math.max(1, Math.min(3, +(zoom + 0.01).toFixed(2)));
+}
+
+function getTimestampForFile(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}${m}${day}_${h}${min}`;
+}
+
+function cleanFilePart(value){
+  return String(value || '')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '_')
+    .replace(/[^\u0600-\u06FFa-zA-Z0-9_.-]/g, '')
+    .slice(0, 80);
+}
+
+function getReviewSummaryText(){
+  const tpl = templates[state.template];
+  const sheetCount = Math.ceil(state.photos.length / tpl.count);
+  const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
+
+  return {
+    clientName: client.name || 'عميل',
+    clientPhone: client.phone || '',
+    templateLabel: tpl.label,
+    photoCount: state.photos.length,
+    sheetCount,
+    quality: 'HD 300DPI',
+    output: 'نسخة نظيفة بدون Watermark',
+    source: 'تطبيق مطبعجي بنها'
+  };
+}
+
+function showSendReviewModal(){
+  return new Promise((resolve)=>{
+    const s = getReviewSummaryText();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'review-backdrop';
+
+    backdrop.innerHTML = `
+      <div class="review-modal">
+        <h3>مراجعة الطلب قبل الإرسال</h3>
+
+        <div class="review-summary">
+          <div><b>العميل:</b> ${s.clientName}</div>
+          <div><b>رقم العميل:</b> ${s.clientPhone}</div>
+          <div><b>القالب:</b> ${s.templateLabel}</div>
+          <div><b>عدد الصور:</b> ${s.photoCount}</div>
+          <div><b>عدد الشيتات:</b> ${s.sheetCount}</div>
+          <div><b>الجودة:</b> ${s.quality}</div>
+          <div><b>الإخراج:</b> ${s.output}</div>
+        </div>
+
+        <div class="review-warning">
+          مهم: لو ظهرت حواف بيضاء في المعاينة، استخدم الزوم والتحريك أو زر "ملء المقاس".
+          زر ملء المقاس قد يسبب قص جزء بسيط من الصورة، لكنه يمنع الحواف البيضاء.
+        </div>
+
+        <label class="review-confirm">
+          <input id="reviewOk" type="checkbox">
+          <span>راجعت الصور والشيتات، وأوافق على إرسال نسخة الطباعة النظيفة HD 300DPI.</span>
+        </label>
+
+        <div class="review-actions">
+          <button type="button" class="cancel">رجوع للتعديل</button>
+          <button type="button" class="send">إرسال النسخة النظيفة</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(backdrop);
+
+    const close = (value) => {
+      backdrop.remove();
+      resolve(value);
+    };
+
+    backdrop.querySelector('.cancel').onclick = () => close(false);
+
+    backdrop.querySelector('.send').onclick = () => {
+      const ok = backdrop.querySelector('#reviewOk').checked;
+      if(!ok){
+        alert('برجاء تأكيد أنك راجعت الصور قبل الإرسال.');
+        return;
+      }
+      close(true);
+    };
+  });
+}
+
+async function tryUploadCleanOutputsToBrowserEndpoint(order, outputs){
+  // حل اختياري مستقبلي:
+  // لو أضفت في config.js:
+  // uploadEndpoint: 'رابط Apps Script أو سيرفر'
+  // البرنامج هيحاول يرفع ملفات الطباعة من المتصفح.
+  if(!CONFIG.uploadEndpoint) return null;
+
+  const filesPayload = [];
+
+  for(const o of outputs){
+    const base64 = await blobToBase64(o.blob);
+    filesPayload.push({
+      name: o.name,
+      type: o.blob.type || 'image/png',
+      base64
+    });
+  }
+
+  const payload = {
+    action: 'uploadPrintFiles',
+    orderId: order.orderId || '',
+    template: templates[state.template].label,
+    quality: 'HD 300DPI',
+    clean: true,
+    files: filesPayload
+  };
+
+  const res = await fetch(CONFIG.uploadEndpoint, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json().catch(()=>null);
+  if(!data || data.success !== true){
+    throw new Error(data?.message || 'فشل رفع الملفات من المتصفح.');
+  }
+
+  return data;
+}
+
+function blobToBase64(blob){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+
 async function shareWork(){
   if(state.photos.length === 0){
     $('status').textContent = 'ارفع الصور أولاً.';
     return;
   }
 
+  if(state.outputs.length === 0){
+    $('status').textContent = 'اضغط إنشاء الشيتات أولًا لمراجعة الطلب قبل الإرسال.';
+    return;
+  }
+
+  const approved = await showSendReviewModal();
+  if(!approved) return;
+
   try{
     $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة النظيفة HD 300DPI...';
 
     const order = await ensureOrderCreated();
 
-    // مهم: النسخة المرسلة للمطبعة نظيفة بدون Watermark وبجودة 300DPI من الصور الأصلية.
+    // النسخة المرسلة للمطبعة نظيفة بدون Watermark وبجودة 300DPI من الصور الأصلية.
     state.cleanOutputs = await buildOutputs(false);
 
     const files = state.cleanOutputs.map(o =>
       new File([o.blob], o.name, { type:'image/png' })
     );
 
-    const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
+    const client = JSON.parse(localStorage.getItem('mb_client') || {});
+    const uploadResult = await tryUploadCleanOutputsToBrowserEndpoint(order, state.cleanOutputs).catch((err)=>{
+      console.warn('Browser upload failed or not configured:', err);
+      return null;
+    });
+
+    const uploadedLinksText = uploadResult?.links?.length
+      ? '\nروابط الملفات:\n' + uploadResult.links.join('\n')
+      : '';
 
     const text = [
-      `طلب صور جديد من ${client.name || 'عميل'}`,
+      'طلب جديد من تطبيق مطبعجي بنها ✅',
+      '',
       `رقم الطلب: ${order.orderId}`,
+      `العميل: ${client.name || 'عميل'}`,
       `رقم العميل: ${client.phone || ''}`,
       `نوع العميل: ${client.type || ''}`,
       `القالب: ${templates[state.template].label}`,
       `عدد الصور: ${state.photos.length}`,
       `عدد الشيتات: ${state.cleanOutputs.length}`,
+      'الجودة: HD 300DPI',
+      'الحالة: جاهز للطباعة',
+      'الأولوية: عاجل',
+      'المصدر: تطبيق مطبعجي بنها',
       '',
       'تم تجهيز نسخة طباعة نظيفة بدون علامة مائية.',
-      'الجودة: HD 300DPI.',
-      'مهم: تُرسل الملفات كـ Document / ملف وليس كصور مضغوطة.'
+      'مهم: تُرسل الملفات كـ Document / ملف وليس كصور مضغوطة.',
+      uploadedLinksText
     ].join('\n');
 
     $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId} وتجهيز نسخة HD نظيفة.`;
 
+    // الحل الأول: Web Share API - إرسال ملفات من المتصفح مباشرة لو الجهاز يدعم.
     if(navigator.canShare && navigator.canShare({ files })){
       await navigator.share({
         title:'طلب صور مطبعجي بنها - Clean HD 300DPI',
         text,
         files
       });
-    }else{
-      // fallback: تحميل الملفات النظيفة ثم فتح واتساب برسالة جاهزة
-      state.cleanOutputs.forEach(o=>{
-        const a = document.createElement('a');
-        a.href = o.url;
-        a.download = o.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      });
+      $('status').textContent = 'تم فتح مشاركة الملفات من المتصفح. تأكد من إرسالها كـ Document / ملف.';
+      return;
+    }
 
-      alert(
-        'تم تحميل ملفات الطباعة النظيفة HD 300DPI ✅\n\n' +
-        'مهم جدًا: أرسل الملفات على واتساب كـ Document / ملف، وليس كصور.'
-      );
-
+    // الحل الثاني: لو فيه رفع للمتصفح uploadEndpoint، نفتح واتساب بالروابط فقط.
+    if(uploadResult?.links?.length){
       const phone = (CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
       const waUrl = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
         : `https://wa.me/?text=${encodeURIComponent(text)}`;
 
       window.open(waUrl, '_blank');
+      $('status').textContent = 'تم رفع الملفات وفتح واتساب بروابط الملفات.';
+      return;
     }
+
+    // الحل الثالث: fallback مضمون - تحميل الملفات وفتح واتساب برسالة.
+    state.cleanOutputs.forEach(o=>{
+      const a = document.createElement('a');
+      a.href = o.url;
+      a.download = o.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    alert(
+      'تم تحميل ملفات الطباعة النظيفة HD 300DPI ✅\n\n' +
+      'مهم جدًا: أرسل الملفات على واتساب كـ Document / ملف، وليس كصور.'
+    );
+
+    const phone = (CONFIG.whatsappNumber || '').replace(/[^\d]/g, '');
+    const waUrl = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+    window.open(waUrl, '_blank');
   }catch(e){
     $('status').textContent = e.message || 'حدث خطأ أثناء إرسال الطلب.';
   }
