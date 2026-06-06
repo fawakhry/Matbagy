@@ -85,6 +85,7 @@ async function init(){
   }
 
   bindEvents();
+  injectAdjustmentStyles();
 
   const saved = localStorage.getItem('mb_client');
 
@@ -147,6 +148,29 @@ function showApp(client){
 
 function selectTemplate(id){ state.template = id; state.order = null; qsa('.template').forEach(b=>b.classList.toggle('active', b.dataset.template === id)); }
 
+function getTemplateAspectRatio(){
+  const tpl = templates[state.template] || templates['6x9'];
+  return tpl.wCm / tpl.hCm;
+}
+
+function getPreviewFrameSize(){
+  const ratio = getTemplateAspectRatio();
+  const h = 150;
+  const w = Math.max(80, Math.round(h * ratio));
+  return { w, h };
+}
+
+function ensurePhotoDefaults(photo){
+  if(typeof photo.offsetX !== 'number') photo.offsetX = 0;
+  if(typeof photo.offsetY !== 'number') photo.offsetY = 0;
+  if(typeof photo.zoom !== 'number' || !isFinite(photo.zoom)) photo.zoom = 1;
+  if(typeof photo.rotation !== 'number') photo.rotation = 0;
+  const size = getPreviewFrameSize();
+  photo.previewW = size.w;
+  photo.previewH = size.h;
+}
+
+
 async function handleFiles(e){
   const files = [...e.target.files];
   state.order = null;
@@ -174,28 +198,67 @@ function renderPhotoList(){
   list.innerHTML = '';
 
   state.photos.forEach((p, index)=>{
-    if(typeof p.offsetX !== 'number') p.offsetX = 0;
-    if(typeof p.offsetY !== 'number') p.offsetY = 0;
+    ensurePhotoDefaults(p);
+
+    const size = getPreviewFrameSize();
 
     const card = document.createElement('div');
     card.className = 'photo-card adjustable-card';
     card.innerHTML = `
-      <div class="adjust-box" data-index="${index}">
-        <img src="${p.url}" class="adjust-img">
+      <div class="adjust-box" data-index="${index}" style="width:${size.w}px;height:${size.h}px;">
+        <canvas class="adjust-canvas" width="${size.w}" height="${size.h}"></canvas>
       </div>
+
+      <div class="zoom-controls">
+        <button type="button" class="zoom-btn zoom-in">+</button>
+        <input type="range" class="zoom-slider" min="1" max="3" step="0.01" value="${p.zoom}">
+        <button type="button" class="zoom-btn zoom-out">−</button>
+      </div>
+
+      <div class="zoom-readout">التكبير: <span class="zoom-value">${Math.round(p.zoom * 100)}%</span></div>
+
       <div class="adjust-actions">
         <button type="button" class="rotate-btn">تدوير 90°</button>
         <button type="button" class="reset-btn">توسيط</button>
       </div>
-      <div class="drag-hint">اضغط واسحب الصورة بإيدك لضبط مكانها قبل إنشاء الشيت</div>
+
+      <div class="drag-hint">الصورة تبدأ كاملة بدون قص. اسحب الصورة بالماوس أو بالإصبع، واستخدم الزوم قبل إنشاء الشيت.</div>
     `;
 
     const box = card.querySelector('.adjust-box');
-    const imgEl = card.querySelector('.adjust-img');
+    const canvas = card.querySelector('.adjust-canvas');
+    const ctx = canvas.getContext('2d');
+    const slider = card.querySelector('.zoom-slider');
+    const zoomValue = card.querySelector('.zoom-value');
 
-    const applyTransform = () => {
-      imgEl.style.transform = `translate(-50%, -50%) translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${p.zoom})`;
+    p.previewW = size.w;
+    p.previewH = size.h;
+
+    let previewImage = null;
+
+    const drawPreview = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if(!previewImage) return;
+
+      drawImageSmart(
+        ctx,
+        previewImage,
+        { x:0, y:0, w:canvas.width, h:canvas.height },
+        p.rotation,
+        p
+      );
+
+      slider.value = String(p.zoom);
+      zoomValue.textContent = `${Math.round(p.zoom * 100)}%`;
     };
+
+    loadImage(p.url).then((img)=>{
+      previewImage = img;
+      drawPreview();
+    }).catch(()=>{});
 
     const invalidateSheets = () => {
       state.order = null;
@@ -204,10 +267,8 @@ function renderPhotoList(){
       $('preview').innerHTML = '';
       $('downloadBtn').classList.add('hidden');
       $('shareBtn').classList.add('hidden');
-      $('status').textContent = 'تم تعديل موضع صورة. اضغط إنشاء الشيتات مرة أخرى.';
+      $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
     };
-
-    applyTransform();
 
     let dragging = false;
     let startX = 0, startY = 0, baseX = 0, baseY = 0;
@@ -217,11 +278,12 @@ function renderPhotoList(){
       ev.stopPropagation();
 
       dragging = true;
+
       const pt = getPointerPoint(ev);
       startX = pt.x;
       startY = pt.y;
-      baseX = p.offsetX || 0;
-      baseY = p.offsetY || 0;
+      baseX = Number(p.offsetX || 0);
+      baseY = Number(p.offsetY || 0);
 
       box.classList.add('dragging');
 
@@ -239,7 +301,8 @@ function renderPhotoList(){
       const pt = getPointerPoint(ev);
       p.offsetX = baseX + (pt.x - startX);
       p.offsetY = baseY + (pt.y - startY);
-      applyTransform();
+
+      drawPreview();
     };
 
     const endDrag = (ev) => {
@@ -258,7 +321,6 @@ function renderPhotoList(){
       invalidateSheets();
     };
 
-    // Pointer Events: أفضل حل للموبايل والماوس معًا
     box.addEventListener('pointerdown', startDrag);
     box.addEventListener('pointermove', moveDrag);
     box.addEventListener('pointerup', endDrag);
@@ -271,15 +333,35 @@ function renderPhotoList(){
       }
     });
 
-    // احتياطي لبعض متصفحات أندرويد القديمة
-    box.addEventListener('touchstart', startDrag, { passive:false });
-    box.addEventListener('touchmove', moveDrag, { passive:false });
-    box.addEventListener('touchend', endDrag, { passive:false });
+    card.querySelector('.zoom-in').onclick = (ev) => {
+      ev.preventDefault();
+      p.zoom = Math.min(3, +(Number(p.zoom || 1) + 0.1).toFixed(2));
+      drawPreview();
+      invalidateSheets();
+    };
+
+    card.querySelector('.zoom-out').onclick = (ev) => {
+      ev.preventDefault();
+      p.zoom = Math.max(1, +(Number(p.zoom || 1) - 0.1).toFixed(2));
+      drawPreview();
+      invalidateSheets();
+    };
+
+    slider.oninput = () => {
+      p.zoom = Math.max(1, Math.min(3, Number(slider.value || 1)));
+      drawPreview();
+    };
+
+    slider.onchange = () => {
+      invalidateSheets();
+    };
 
     card.querySelector('.rotate-btn').onclick = (ev) => {
       ev.preventDefault();
-      p.rotation = (p.rotation + 90) % 360;
-      applyTransform();
+      p.rotation = (Number(p.rotation || 0) + 90) % 360;
+      p.offsetX = 0;
+      p.offsetY = 0;
+      drawPreview();
       invalidateSheets();
     };
 
@@ -287,7 +369,8 @@ function renderPhotoList(){
       ev.preventDefault();
       p.offsetX = 0;
       p.offsetY = 0;
-      applyTransform();
+      p.zoom = 1;
+      drawPreview();
       invalidateSheets();
     };
 
@@ -416,18 +499,19 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const fittedW = rotated90 ? originalH : originalW;
   const fittedH = rotated90 ? originalW : originalH;
 
-  // Contain فقط: الصورة تبدأ كاملة بدون قص أو مط.
+  // البداية Contain: الصورة كاملة بدون قص وبدون مط.
   const containScale = Math.min(rect.w / fittedW, rect.h / fittedH);
 
-  // زوم موحد للطول والعرض معًا، بدون أي Stretch.
+  // الزوم موحد للطول والعرض معًا.
   const zoom = Math.max(1, Number(photo.zoom || 1));
   const scale = containScale * zoom;
 
   const drawW = originalW * scale;
   const drawH = originalH * scale;
 
-  const previewW = Math.max(1, Number(photo.previewW || getPreviewFrameSize().w || 100));
-  const previewH = Math.max(1, Number(photo.previewH || getPreviewFrameSize().h || 150));
+  const previewW = Math.max(1, Number(photo.previewW || rect.w || 100));
+  const previewH = Math.max(1, Number(photo.previewH || rect.h || 150));
+
   const offsetX = (Number(photo.offsetX || 0) / previewW) * rect.w;
   const offsetY = (Number(photo.offsetY || 0) / previewH) * rect.h;
 

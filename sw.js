@@ -1,38 +1,32 @@
-const CACHE_NAME = 'matbagy-v98-cache';
+const CACHE_NAME = 'matbagy-v99-cache';
 const ASSETS = [
   './',
-  './index.html?v=98',
-  './styles.css?v=98',
-  './config.js?v=98',
-  './app.js?v=98',
-  './print-export.js?v=98',
-  './manifest.webmanifest?v=98'
+  './index.html?v=99',
+  './styles.css?v=99',
+  './config.js?v=99',
+  './app.js?v=99',
+  './print-export.js?v=99',
+  './manifest.webmanifest?v=99'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => null))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => null)));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((key) => {
-        if (key !== CACHE_NAME) return caches.delete(key);
-      }))
-    ).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(keys.map((key) => {
+      if (key !== CACHE_NAME) return caches.delete(key);
+    }))).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-
   if (req.method !== 'GET') return;
 
-  // Always fetch fresh critical files
   if (
     url.pathname.endsWith('/index.html') ||
     url.pathname.endsWith('/app.js') ||
@@ -41,9 +35,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('/print-export.js') ||
     url.pathname.endsWith('/sw.js')
   ) {
-    event.respondWith(
-      fetch(req, { cache: 'no-store' }).catch(() => caches.match(req))
-    );
+    event.respondWith(fetch(req, { cache: 'no-store' }).catch(() => caches.match(req)));
     return;
   }
 

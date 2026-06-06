@@ -1,12 +1,9 @@
-نسخة v98 - كسر كاش إجباري
+نسخة v99:
+- معاينة الصور أصبحت Canvas بدل img.
+- السحب بالماوس والإصبع يعمل داخل المعاينة.
+- الزوم يعمل بنسبة وتناسب بدون تمطيط.
+- الصورة تبدأ كاملة بدون قص تلقائي.
+- ملف الطباعة يستخدم نفس دالة الرسم.
 
-ارفع الملفات التالية مكان القديمة:
-index.html
-app.js
-sw.js
-print-export.js
-
-بعد الرفع افتح الرابط:
-https://fawakhry.github.io/Matbagy/?v=98
-
-مهم: ملف app_zoom_pan.js الموجود عندك في GitHub غير مستخدم حاليًا، لأن index.html يستدعي app.js فقط.
+ارفع: index.html, app.js, sw.js, print-export.js
+ثم افتح: https://fawakhry.github.io/Matbagy/?v=99
