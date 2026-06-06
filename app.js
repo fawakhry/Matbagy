@@ -428,7 +428,7 @@ async function generateSheets(){
     return;
   }
 
-  $('status').textContent = 'جاري إنشاء شيتات المعاينة بعلامة مطبعجي بنها...';
+  $('status').textContent = 'جاري إنشاء شيتات عالية الجودة بعلامة مطبعجي بنها...';
   await new Promise(resolve => setTimeout(resolve, 200));
   $('preview').innerHTML = '';
   state.outputs = [];
@@ -478,13 +478,12 @@ async function buildOutputs(withWatermark){
   for(let i=0; i<chunks.length; i++){
     const canvas = await drawSheet(chunks[i], tpl, withWatermark);
 
-    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
     let url = '';
 
     if(blob){
       url = URL.createObjectURL(blob);
     }else{
-      // fallback لو المتصفح فشل في toBlob
       url = canvas.toDataURL('image/png');
       blob = await dataUrlToBlob(url);
     }
@@ -509,40 +508,10 @@ function dataUrlToBlob(dataUrl){
 }
 
 
-async function getAdjustedImageForSheet(photo){
-  if(photo.adjustedDataUrl){
-    return await loadImage(photo.adjustedDataUrl);
-  }
-
-  // fallback: لو لسبب ما مفيش معاينة محفوظة، ارسمها الآن على Canvas بنفس المقاس.
-  ensurePhotoDefaults(photo);
-  const size = { w: photo.previewW || getPreviewFrameSize().w, h: photo.previewH || getPreviewFrameSize().h };
-  const tmp = document.createElement('canvas');
-  tmp.width = size.w;
-  tmp.height = size.h;
-  const tctx = tmp.getContext('2d');
-  const img = photo.img || await loadImage(photo.url);
-  photo.img = img;
-  drawImageSmart(tctx, img, { x:0, y:0, w:tmp.width, h:tmp.height }, Number(photo.rotation || 0), photo);
-  photo.adjustedDataUrl = tmp.toDataURL('image/png');
-  return await loadImage(photo.adjustedDataUrl);
-}
-
-function drawAdjustedCanvasIntoRect(ctx, adjustedImg, rect){
-  ctx.save();
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  ctx.beginPath();
-  ctx.rect(rect.x, rect.y, rect.w, rect.h);
-  ctx.clip();
-  // هنا نرسم معاينة الصورة كما ضبطها العميل كاملة داخل الخانة بدون إعادة حساب زوم أو قص.
-  ctx.drawImage(adjustedImg, rect.x, rect.y, rect.w, rect.h);
-  ctx.restore();
-}
-
 
 async function drawSheet(photos, tpl, withWatermark=true){
-  const dpi = CONFIG.dpi || 200;
+  // v105: جودة طباعة حقيقية. الشيت النهائي يرسم من الصورة الأصلية، وليس من معاينة صغيرة.
+  const dpi = CONFIG.dpi || 300;
   const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
   const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
   const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
@@ -563,23 +532,18 @@ async function drawSheet(photos, tpl, withWatermark=true){
     const photo = photos[i];
 
     try{
-      const adjustedImg = await getAdjustedImageForSheet(photo);
+      const img = photo.img || await loadImage(photo.url);
+      photo.img = img;
 
-      if(rect.forceRotate){
-        ctx.save();
-        ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
-        ctx.rotate(Math.PI / 2);
-        ctx.drawImage(adjustedImg, -rect.h / 2, -rect.w / 2, rect.h, rect.w);
-        ctx.restore();
-      }else{
-        drawAdjustedCanvasIntoRect(ctx, adjustedImg, rect);
-      }
+      // لو القالب نفسه محتاج 3 صور مقلوبة في 7×10، نحافظ على ذلك فقط.
+      const rotation = rect.forceRotate ? 90 : Number(photo.rotation || 0);
+
+      drawImageSmart(ctx, img, rect, rotation, photo);
 
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = Math.max(1, Math.round(dpi/180));
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
     }catch(err){
-      // لو صورة فشلت، نترك مكانها أبيض ونكتب علامة بسيطة بدل ما الشيت كله يطلع أسود.
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       ctx.strokeStyle = '#e5e7eb';
@@ -661,10 +625,10 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const fittedW = rotated90 ? originalH : originalW;
   const fittedH = rotated90 ? originalW : originalH;
 
-  // Contain: الصورة كاملة بدون قص ولا مط.
+  // Contain: الصورة كاملة بدون قص تلقائي.
   const containScale = Math.min(rect.w / fittedW, rect.h / fittedH);
 
-  // زوم موحد يحافظ على نسبة الطول والعرض.
+  // الزوم موحد للطول والعرض، فيحافظ على النسبة الأصلية.
   const zoom = Math.max(1, Number(photo.zoom || 1));
   const scale = containScale * zoom;
 
@@ -674,6 +638,7 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const previewW = Math.max(1, Number(photo.previewW || rect.w || 100));
   const previewH = Math.max(1, Number(photo.previewH || rect.h || 150));
 
+  // نحول تحريك المعاينة الصغيرة إلى تحريك نسبي داخل خانة الطباعة الكبيرة.
   const offsetX = (Number(photo.offsetX || 0) / previewW) * rect.w;
   const offsetY = (Number(photo.offsetY || 0) / previewH) * rect.h;
 
@@ -691,10 +656,7 @@ function loadImage(src){
   return new Promise((resolve, reject)=>{
     const img = new Image();
 
-    img.onload = () => {
-      resolve(img);
-    };
-
+    img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('تعذر تحميل الصورة'));
 
     img.src = src;
