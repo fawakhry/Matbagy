@@ -1,4 +1,4 @@
-const CACHE = 'motabagy-photo-client-v11';
+const CACHE = 'motabagy-photo-client-v31';
 
 const ASSETS = [
   './',
@@ -13,10 +13,8 @@ const ASSETS = [
 
 self.addEventListener('install', event => {
   self.skipWaiting();
-
   event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
   );
 });
 
@@ -37,10 +35,7 @@ self.addEventListener('fetch', event => {
     fetch(event.request)
       .then(response => {
         const copy = response.clone();
-
-        caches.open(CACHE)
-          .then(cache => cache.put(event.request, copy));
-
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
         return response;
       })
       .catch(() => caches.match(event.request))
