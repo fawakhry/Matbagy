@@ -418,36 +418,92 @@ async function autoRotateAll(){
 function shouldRotate(img, tpl){ const imgPortrait = img.naturalHeight >= img.naturalWidth; const slotPortrait = tpl.hCm >= tpl.wCm; return imgPortrait !== slotPortrait; }
 
 async function generateSheets(){
-  if(state.photos.length === 0){ $('status').textContent = 'ارفع الصور أولاً.'; return; }
+  if(state.photos.length === 0){
+    $('status').textContent = 'ارفع الصور أولاً.';
+    return;
+  }
+
   $('status').textContent = 'جاري إنشاء شيتات المعاينة بعلامة مطبعجي بنها...';
-  $('preview').innerHTML = ''; state.outputs = []; state.cleanOutputs = []; state.order = null;
+  $('preview').innerHTML = '';
+  state.outputs = [];
+  state.cleanOutputs = [];
+  state.order = null;
+
   state.outputs = await buildOutputs(true);
+
   state.outputs.forEach(o=>{
-    const box = document.createElement('div'); box.className = 'sheet-preview';
-    box.innerHTML = `<img src="${o.url}"><a download="${o.name}" href="${o.url}">تحميل معاينة ${o.name}</a>`;
+    const box = document.createElement('div');
+    box.className = 'sheet-preview';
+
+    // نعرض Canvas مصغر بدل img عشان بعض المتصفحات كانت بتعرض الشيت كصورة سوداء.
+    const viewCanvas = document.createElement('canvas');
+    const maxW = 280;
+    const ratio = o.canvas.height / o.canvas.width;
+    viewCanvas.width = maxW;
+    viewCanvas.height = Math.round(maxW * ratio);
+
+    const vctx = viewCanvas.getContext('2d');
+    vctx.fillStyle = '#ffffff';
+    vctx.fillRect(0, 0, viewCanvas.width, viewCanvas.height);
+    vctx.imageSmoothingEnabled = true;
+    vctx.imageSmoothingQuality = 'high';
+    vctx.drawImage(o.canvas, 0, 0, viewCanvas.width, viewCanvas.height);
+
+    const link = document.createElement('a');
+    link.download = o.name;
+    link.href = o.url;
+    link.textContent = `تحميل معاينة ${o.name}`;
+
+    box.appendChild(viewCanvas);
+    box.appendChild(link);
     $('preview').appendChild(box);
   });
+
   $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة تُجهز عند الإرسال لمطبعجي بنها.`;
-  $('downloadBtn').classList.remove('hidden'); $('shareBtn').classList.remove('hidden');
+  $('downloadBtn').classList.remove('hidden');
+  $('shareBtn').classList.remove('hidden');
 }
 
 async function buildOutputs(withWatermark){
   const tpl = templates[state.template];
   const chunks = chunk(state.photos, tpl.count);
   const outputs = [];
+
   for(let i=0; i<chunks.length; i++){
     const canvas = await drawSheet(chunks[i], tpl, withWatermark);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
-    const url = URL.createObjectURL(blob);
+
+    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    let url = '';
+
+    if(blob){
+      url = URL.createObjectURL(blob);
+    }else{
+      // fallback لو المتصفح فشل في toBlob
+      url = canvas.toDataURL('image/png');
+      blob = await dataUrlToBlob(url);
+    }
+
     const suffix = withWatermark ? '_Preview' : '_Print';
     const name = `Motabagy_${tpl.label}_Sheet_${String(i+1).padStart(3,'0')}${suffix}.png`;
-    outputs.push({ blob, url, name });
+
+    outputs.push({ blob, url, name, canvas });
   }
+
   return outputs;
 }
 
+function dataUrlToBlob(dataUrl){
+  const parts = dataUrl.split(',');
+  const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/png';
+  const bin = atob(parts[1]);
+  const len = bin.length;
+  const arr = new Uint8Array(len);
+  for(let i=0; i<len; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type:mime });
+}
+
 async function drawSheet(photos, tpl, withWatermark=true){
-  const dpi = CONFIG.dpi || 300;
+  const dpi = CONFIG.dpi || 200;
   const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
   const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
   const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
@@ -457,7 +513,7 @@ async function drawSheet(photos, tpl, withWatermark=true){
   c.width = W;
   c.height = H;
 
-  const ctx = c.getContext('2d', { alpha:false });
+  const ctx = c.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
