@@ -112,24 +112,23 @@ function renderPhotoList(){
     card.className = 'photo-card adjustable-card';
     card.innerHTML = `
       <div class="adjust-box" data-index="${index}">
-        <img src="${p.url}" class="adjust-img" style="transform:translate(${p.offsetX}px, ${p.offsetY}px) rotate(${p.rotation}deg)">
+        <img src="${p.url}" class="adjust-img">
       </div>
       <div class="adjust-actions">
         <button type="button" class="rotate-btn">تدوير 90°</button>
         <button type="button" class="reset-btn">توسيط</button>
       </div>
-      <div class="drag-hint">اسحب الصورة بإيدك أو بالماوس لضبط مكانها قبل الطباعة</div>
+      <div class="drag-hint">اضغط واسحب الصورة بإيدك لضبط مكانها قبل إنشاء الشيت</div>
     `;
 
     const box = card.querySelector('.adjust-box');
     const imgEl = card.querySelector('.adjust-img');
 
-    let dragging = false;
-    let startX = 0, startY = 0;
-    let baseX = 0, baseY = 0;
+    const applyTransform = () => {
+      imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(1.12)`;
+    };
 
-    const update = () => {
-      imgEl.style.transform = `translate(${p.offsetX}px, ${p.offsetY}px) rotate(${p.rotation}deg)`;
+    const invalidateSheets = () => {
       state.order = null;
       state.outputs = [];
       state.cleanOutputs = [];
@@ -139,58 +138,102 @@ function renderPhotoList(){
       $('status').textContent = 'تم تعديل موضع صورة. اضغط إنشاء الشيتات مرة أخرى.';
     };
 
-    const point = (ev) => ev.touches ? ev.touches[0] : ev;
+    applyTransform();
 
-    const down = (ev) => {
+    let dragging = false;
+    let startX = 0, startY = 0, baseX = 0, baseY = 0;
+
+    const startDrag = (ev) => {
       ev.preventDefault();
+      ev.stopPropagation();
+
       dragging = true;
-      const pt = point(ev);
-      startX = pt.clientX;
-      startY = pt.clientY;
+      const pt = getPointerPoint(ev);
+      startX = pt.x;
+      startY = pt.y;
       baseX = p.offsetX || 0;
       baseY = p.offsetY || 0;
+
       box.classList.add('dragging');
+
+      if(ev.pointerId !== undefined && box.setPointerCapture){
+        try { box.setPointerCapture(ev.pointerId); } catch(err) {}
+      }
     };
 
-    const move = (ev) => {
+    const moveDrag = (ev) => {
       if(!dragging) return;
+
       ev.preventDefault();
-      const pt = point(ev);
-      p.offsetX = baseX + (pt.clientX - startX);
-      p.offsetY = baseY + (pt.clientY - startY);
-      imgEl.style.transform = `translate(${p.offsetX}px, ${p.offsetY}px) rotate(${p.rotation}deg)`;
+      ev.stopPropagation();
+
+      const pt = getPointerPoint(ev);
+      p.offsetX = baseX + (pt.x - startX);
+      p.offsetY = baseY + (pt.y - startY);
+      applyTransform();
     };
 
-    const up = () => {
+    const endDrag = (ev) => {
       if(!dragging) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+
       dragging = false;
       box.classList.remove('dragging');
-      update();
+
+      if(ev.pointerId !== undefined && box.releasePointerCapture){
+        try { box.releasePointerCapture(ev.pointerId); } catch(err) {}
+      }
+
+      invalidateSheets();
     };
 
-    box.addEventListener('mousedown', down);
-    box.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
+    // Pointer Events: أفضل حل للموبايل والماوس معًا
+    box.addEventListener('pointerdown', startDrag);
+    box.addEventListener('pointermove', moveDrag);
+    box.addEventListener('pointerup', endDrag);
+    box.addEventListener('pointercancel', endDrag);
+    box.addEventListener('lostpointercapture', () => {
+      if(dragging){
+        dragging = false;
+        box.classList.remove('dragging');
+        invalidateSheets();
+      }
+    });
 
-    box.addEventListener('touchstart', down, { passive:false });
-    box.addEventListener('touchmove', move, { passive:false });
-    box.addEventListener('touchend', up);
+    // احتياطي لبعض متصفحات أندرويد القديمة
+    box.addEventListener('touchstart', startDrag, { passive:false });
+    box.addEventListener('touchmove', moveDrag, { passive:false });
+    box.addEventListener('touchend', endDrag, { passive:false });
 
-    card.querySelector('.rotate-btn').onclick = () => {
+    card.querySelector('.rotate-btn').onclick = (ev) => {
+      ev.preventDefault();
       p.rotation = (p.rotation + 90) % 360;
-      update();
-      imgEl.style.transform = `translate(${p.offsetX}px, ${p.offsetY}px) rotate(${p.rotation}deg)`;
+      applyTransform();
+      invalidateSheets();
     };
 
-    card.querySelector('.reset-btn').onclick = () => {
+    card.querySelector('.reset-btn').onclick = (ev) => {
+      ev.preventDefault();
       p.offsetX = 0;
       p.offsetY = 0;
-      update();
-      imgEl.style.transform = `translate(0px, 0px) rotate(${p.rotation}deg)`;
+      applyTransform();
+      invalidateSheets();
     };
 
     list.appendChild(card);
   });
+}
+
+function getPointerPoint(ev){
+  if(ev.touches && ev.touches.length){
+    return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+  }
+  if(ev.changedTouches && ev.changedTouches.length){
+    return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+  }
+  return { x: ev.clientX, y: ev.clientY };
 }
 
 async function autoRotateAll(){
@@ -311,7 +354,7 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
 
   // تحويل سحب العميل من معاينة صغيرة إلى الشيت النهائي.
   // كل 1px في المعاينة يتحول إلى نسبة من عرض/ارتفاع الخانة.
-  const previewBox = 88;
+  const previewBox = 118;
   const userOffsetX = Number(photo.offsetX || 0);
   const userOffsetY = Number(photo.offsetY || 0);
   dx += (userOffsetX / previewBox) * rect.w;
