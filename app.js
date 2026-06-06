@@ -1,56 +1,4 @@
 const CONFIG = window.MB_CONFIG || {};
-
-const MATBAGY_APP_VERSION = '2026-06-06-v95';
-
-function setupAutoUpdate(){
-  try{
-    window.MATBAGY_APP_VERSION = MATBAGY_APP_VERSION;
-
-    // امسح كاش النسخ القديمة بدون حذف بيانات التفعيل أو Device ID
-    const savedVersion = localStorage.getItem('mb_app_version');
-    if(savedVersion !== MATBAGY_APP_VERSION){
-      localStorage.setItem('mb_app_version', MATBAGY_APP_VERSION);
-      if(window.caches){
-        caches.keys()
-          .then(keys => Promise.all(keys.map(key => caches.delete(key))))
-          .catch(()=>{});
-      }
-    }
-
-    if(!('serviceWorker' in navigator)) return;
-
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if(refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=' + encodeURIComponent(MATBAGY_APP_VERSION), { updateViaCache: 'none' })
-        .then(reg => {
-          if(reg.waiting){
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-
-          reg.addEventListener('updatefound', () => {
-            const worker = reg.installing;
-            if(!worker) return;
-            worker.addEventListener('statechange', () => {
-              if(worker.state === 'installed' && navigator.serviceWorker.controller){
-                worker.postMessage({ type: 'SKIP_WAITING' });
-              }
-            });
-          });
-
-          reg.update().catch(()=>{});
-          setInterval(() => reg.update().catch(()=>{}), 15 * 60 * 1000);
-        })
-        .catch(()=>{});
-    });
-  }catch(e){}
-}
-
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
 
@@ -65,103 +13,7 @@ const templates = {
   '7x10': { label:'7×10', count:19, wCm:7, hCm:10, mode:'mixed' }
 };
 
-setupAutoUpdate();
-injectManualAdjustStyles();
 init();
-
-
-function injectManualAdjustStyles(){
-  if(document.getElementById('matbagy-manual-adjust-style')) return;
-  const style = document.createElement('style');
-  style.id = 'matbagy-manual-adjust-style';
-  style.textContent = `
-    .photo-list{
-      display:grid !important;
-      grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)) !important;
-      gap:16px !important;
-      align-items:start !important;
-    }
-    .photo-card.adjustable-card{
-      display:flex !important;
-      flex-direction:column !important;
-      gap:10px !important;
-      padding:12px !important;
-      border:1px solid #e5e7eb !important;
-      border-radius:16px !important;
-      background:#fff !important;
-      overflow:visible !important;
-    }
-    .adjust-box{
-      width:100% !important;
-      max-width:170px !important;
-      margin:0 auto !important;
-      border:2px dashed #7fc8bd !important;
-      border-radius:14px !important;
-      background:#fff !important;
-      overflow:hidden !important;
-      position:relative !important;
-      touch-action:none !important;
-      user-select:none !important;
-    }
-    .adjust-img{
-      user-select:none !important;
-      -webkit-user-drag:none !important;
-      cursor:grab !important;
-    }
-    .adjust-box.dragging .adjust-img{ cursor:grabbing !important; }
-    .adjust-actions{
-      display:flex !important;
-      flex-direction:column !important;
-      gap:8px !important;
-      width:100% !important;
-    }
-    .zoom-control-row{
-      display:grid !important;
-      grid-template-columns:44px minmax(90px, 1fr) 44px !important;
-      gap:8px !important;
-      align-items:center !important;
-      width:100% !important;
-    }
-    .action-control-row{
-      display:grid !important;
-      grid-template-columns:1fr 1fr !important;
-      gap:8px !important;
-      width:100% !important;
-    }
-    .zoom-range{
-      width:100% !important;
-      min-width:0 !important;
-      margin:0 !important;
-    }
-    .adjust-actions button{
-      min-height:40px !important;
-      padding:8px 6px !important;
-      border-radius:12px !important;
-      white-space:normal !important;
-      line-height:1.15 !important;
-      font-size:13px !important;
-    }
-    .drag-hint{
-      font-size:12px !important;
-      line-height:1.5 !important;
-      color:#64748b !important;
-      text-align:center !important;
-    }
-    .sheet-preview img{
-      width:100% !important;
-      height:auto !important;
-      object-fit:contain !important;
-      background:#fff !important;
-    }
-    @media (max-width:520px){
-      .photo-list{ grid-template-columns:repeat(2, minmax(0, 1fr)) !important; gap:10px !important; }
-      .photo-card.adjustable-card{ padding:8px !important; }
-      .adjust-actions button{ font-size:12px !important; padding:7px 4px !important; }
-      .zoom-control-row{ grid-template-columns:38px minmax(70px, 1fr) 38px !important; gap:5px !important; }
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 function getDeviceId(){
   let id = localStorage.getItem('mb_device_id');
@@ -227,6 +79,10 @@ async function checkSavedClientOnServer(client){
 
 async function init(){
   forceReloginIfNeeded();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
 
   bindEvents();
 
@@ -298,8 +154,8 @@ async function handleFiles(e){
     if(!file.type.startsWith('image/')) continue;
     const url = URL.createObjectURL(file);
     const img = await loadImage(url);
-    const rotation = 0; // لا تدوير تلقائي: العميل يضبط التدوير بنفسه
-    state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0, zoom:1, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
+    const rotation = shouldRotate(img, templates[state.template]) ? 90 : 0;
+    state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0 });
   }
   renderPhotoList();
 }
@@ -321,7 +177,6 @@ function renderPhotoList(){
   state.photos.forEach((p, index)=>{
     if(typeof p.offsetX !== 'number') p.offsetX = 0;
     if(typeof p.offsetY !== 'number') p.offsetY = 0;
-    if(typeof p.zoom !== 'number') p.zoom = 1;
 
     const card = document.createElement('div');
     card.className = 'photo-card adjustable-card';
@@ -330,80 +185,17 @@ function renderPhotoList(){
         <img src="${p.url}" class="adjust-img">
       </div>
       <div class="adjust-actions">
-        <div class="zoom-control-row">
-          <button type="button" class="zoom-out-btn">−</button>
-          <input type="range" class="zoom-range" min="0.2" max="6" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
-          <button type="button" class="zoom-in-btn">+</button>
-        </div>
-        <div class="action-control-row">
-          <button type="button" class="rotate-btn">تدوير 90°</button>
-          <button type="button" class="reset-btn">توسيط</button>
-        </div>
+        <button type="button" class="rotate-btn">تدوير 90°</button>
+        <button type="button" class="reset-btn">توسيط</button>
       </div>
-      <div class="drag-hint">اسحب الصورة للتحريك، واستخدم الزوم للتكبير أو التصغير قبل إنشاء الشيت</div>
+      <div class="drag-hint">اضغط واسحب الصورة بإيدك لضبط مكانها قبل إنشاء الشيت</div>
     `;
 
     const box = card.querySelector('.adjust-box');
     const imgEl = card.querySelector('.adjust-img');
-    const zoomRange = card.querySelector('.zoom-range');
-    const zoomInBtn = card.querySelector('.zoom-in-btn');
-    const zoomOutBtn = card.querySelector('.zoom-out-btn');
-
-    if(zoomRange){
-      zoomRange.style.minWidth = '110px';
-      zoomRange.style.flex = '1';
-    }
-
-    // المعاينة هنا لا تقص الصورة تلقائيًا إطلاقًا.
-    // لا نعتمد على object-fit فقط، بل نحسب مقاس contain يدويًا حتى نتجنب أي CSS قد يسبب crop.
-    box.style.overflow = 'hidden';
-    box.style.position = 'relative';
-    box.style.aspectRatio = `${templates[state.template].wCm} / ${templates[state.template].hCm}`;
-    imgEl.style.setProperty('position', 'absolute', 'important');
-    imgEl.style.setProperty('left', '50%', 'important');
-    imgEl.style.setProperty('top', '50%', 'important');
-    imgEl.style.setProperty('max-width', 'none', 'important');
-    imgEl.style.setProperty('max-height', 'none', 'important');
-    imgEl.style.setProperty('width', 'auto', 'important');
-    imgEl.style.setProperty('height', 'auto', 'important');
-    imgEl.style.setProperty('object-fit', 'fill', 'important');
-    imgEl.style.transformOrigin = 'center center';
-    imgEl.draggable = false;
-    imgEl.setAttribute('draggable', 'false');
-
-    const getPreviewNaturalSize = () => {
-      const rotated = (p.rotation || 0) % 180 !== 0;
-      const sourceW = Number(p.naturalWidth || imgEl.naturalWidth || 1);
-      const sourceH = Number(p.naturalHeight || imgEl.naturalHeight || 1);
-      return rotated ? { w: sourceH, h: sourceW } : { w: sourceW, h: sourceH };
-    };
-
-    const layoutPreviewImage = () => {
-      const rect = box.getBoundingClientRect();
-      const boxW = Math.max(1, rect.width || 118);
-      const boxH = Math.max(1, rect.height || 160);
-      p.previewBoxW = boxW;
-      p.previewBoxH = boxH;
-      const preview = getPreviewNaturalSize();
-      const containScale = Math.min(boxW / preview.w, boxH / preview.h);
-      const displayW = preview.w * containScale;
-      const displayH = preview.h * containScale;
-
-      // نضبط الأبعاد الفعلية للصورة قبل التحريك/الزوم.
-      if((p.rotation || 0) % 180 !== 0){
-        imgEl.style.width = `${displayH}px`;
-        imgEl.style.height = `${displayW}px`;
-      }else{
-        imgEl.style.width = `${displayW}px`;
-        imgEl.style.height = `${displayH}px`;
-      }
-    };
 
     const applyTransform = () => {
-      layoutPreviewImage();
-      const zoom = Number(p.zoom || 1);
-      imgEl.style.transform = `translate(-50%, -50%) translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${zoom})`;
-      if(zoomRange) zoomRange.value = Math.min(6, Math.max(0.2, zoom));
+      imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(1.12)`;
     };
 
     const invalidateSheets = () => {
@@ -414,23 +206,15 @@ function renderPhotoList(){
       $('downloadBtn').classList.add('hidden');
       $('shareBtn').classList.add('hidden');
       if($('printFileNote')) $('printFileNote').classList.add('hidden');
-      $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
+      $('status').textContent = 'تم تعديل موضع صورة. اضغط إنشاء الشيتات مرة أخرى.';
     };
 
     applyTransform();
-
-    if(window.ResizeObserver){
-      const ro = new ResizeObserver(() => applyTransform());
-      ro.observe(box);
-    }else{
-      window.addEventListener('resize', applyTransform);
-    }
 
     let dragging = false;
     let startX = 0, startY = 0, baseX = 0, baseY = 0;
 
     const startDrag = (ev) => {
-      if(ev.touches && ev.touches.length > 1) return;
       ev.preventDefault();
       ev.stopPropagation();
 
@@ -449,7 +233,6 @@ function renderPhotoList(){
     };
 
     const moveDrag = (ev) => {
-      if(ev.touches && ev.touches.length > 1) return;
       if(!dragging) return;
 
       ev.preventDefault();
@@ -476,79 +259,6 @@ function renderPhotoList(){
 
       invalidateSheets();
     };
-
-    const setZoom = (value) => {
-      const z = Math.min(6, Math.max(0.2, Number(value) || 1));
-      p.zoom = Math.round(z * 100) / 100;
-      applyTransform();
-      invalidateSheets();
-    };
-
-    if(zoomRange){
-      zoomRange.addEventListener('input', (ev) => {
-        p.zoom = Number(ev.target.value) || 1;
-        applyTransform();
-      });
-      zoomRange.addEventListener('change', () => invalidateSheets());
-    }
-
-    if(zoomInBtn){
-      zoomInBtn.onclick = (ev) => {
-        ev.preventDefault();
-        setZoom((p.zoom || 1) + 0.1);
-      };
-    }
-
-    if(zoomOutBtn){
-      zoomOutBtn.onclick = (ev) => {
-        ev.preventDefault();
-        setZoom((p.zoom || 1) - 0.1);
-      };
-    }
-
-    box.addEventListener('wheel', (ev) => {
-      ev.preventDefault();
-      const direction = ev.deltaY < 0 ? 0.08 : -0.08;
-      setZoom((p.zoom || 1) + direction);
-    }, { passive:false });
-
-    let pinchStartDistance = 0;
-    let pinchStartZoom = 1;
-
-    const getTouchDistance = (ev) => {
-      if(!ev.touches || ev.touches.length < 2) return 0;
-      const a = ev.touches[0];
-      const b = ev.touches[1];
-      const dx = a.clientX - b.clientX;
-      const dy = a.clientY - b.clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-
-    box.addEventListener('touchstart', (ev) => {
-      if(ev.touches && ev.touches.length === 2){
-        ev.preventDefault();
-        dragging = false;
-        pinchStartDistance = getTouchDistance(ev);
-        pinchStartZoom = p.zoom || 1;
-      }
-    }, { passive:false });
-
-    box.addEventListener('touchmove', (ev) => {
-      if(ev.touches && ev.touches.length === 2 && pinchStartDistance > 0){
-        ev.preventDefault();
-        const distance = getTouchDistance(ev);
-        const nextZoom = pinchStartZoom * (distance / pinchStartDistance);
-        p.zoom = Math.min(6, Math.max(0.2, nextZoom));
-        applyTransform();
-      }
-    }, { passive:false });
-
-    box.addEventListener('touchend', (ev) => {
-      if(pinchStartDistance > 0 && (!ev.touches || ev.touches.length < 2)){
-        pinchStartDistance = 0;
-        invalidateSheets();
-      }
-    }, { passive:false });
 
     // Pointer Events: أفضل حل للموبايل والماوس معًا
     box.addEventListener('pointerdown', startDrag);
@@ -579,7 +289,6 @@ function renderPhotoList(){
       ev.preventDefault();
       p.offsetX = 0;
       p.offsetY = 0;
-      p.zoom = 1;
       applyTransform();
       invalidateSheets();
     };
@@ -693,10 +402,6 @@ function getRects(tpl, W, H, gap, margin){
 
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.save();
-
-  // الخانة تظل بمقاس الطباعة الحقيقي.
-  // الصورة تظهر كاملة افتراضيًا بدون أي قص تلقائي.
-  // أي قص يحصل بعد ذلك يكون بسبب Zoom In يختاره العميل فقط.
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
@@ -705,44 +410,47 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
   const rotated = rotation % 180 !== 0;
-  const sourceW = img.naturalWidth;
-  const sourceH = img.naturalHeight;
+  const iw = rotated ? img.naturalHeight : img.naturalWidth;
+  const ih = rotated ? img.naturalWidth : img.naturalHeight;
 
-  // أبعاد الصورة بعد الدوران بالنسبة للخانة.
-  const effectiveW = rotated ? sourceH : sourceW;
-  const effectiveH = rotated ? sourceW : sourceH;
+  const scale = Math.max(rect.w / iw, rect.h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
 
-  // الوضع الافتراضي NO AUTO CROP:
-  // نستخدم CONTAIN كأساس حتى تظهر الصورة كاملة داخل خانة الطباعة.
-  // قد تظهر حواف/فراغات بيضاء إذا كانت نسبة الصورة مختلفة عن مقاس الطباعة.
-  // عند تكبير العميل يدويًا فقط، قد يتم قص جزء داخل الإطار حسب اختياره.
-  const baseScale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
-  const userZoom = Math.min(6, Math.max(0.2, Number(photo.zoom || 1)));
-  const scale = baseScale * userZoom;
+  let dx = rect.x + (rect.w - dw) / 2;
+  let dy = rect.y + (rect.h - dh) / 2;
 
-  const drawW = sourceW * scale;
-  const drawH = sourceH * scale;
-
-  // مركز الخانة.
-  let centerX = rect.x + rect.w / 2;
-  let centerY = rect.y + rect.h / 2;
+  if(ih > iw && dh > rect.h){
+    dy = rect.y - Math.min((dh - rect.h) * 0.22, dh - rect.h);
+  }
 
   // تحويل سحب العميل من معاينة صغيرة إلى الشيت النهائي.
-  // التحريك هنا اختياري، ومع وضع عدم القص لن يقطع الصورة من المصدر.
-  const previewBoxW = Math.max(1, Number(photo.previewBoxW || 118));
-  const previewBoxH = Math.max(1, Number(photo.previewBoxH || 160));
+  // كل 1px في المعاينة يتحول إلى نسبة من عرض/ارتفاع الخانة.
+  const previewBox = 118;
   const userOffsetX = Number(photo.offsetX || 0);
   const userOffsetY = Number(photo.offsetY || 0);
-  centerX += (userOffsetX / previewBoxW) * rect.w;
-  centerY += (userOffsetY / previewBoxH) * rect.h;
+  dx += (userOffsetX / previewBox) * rect.w;
+  dy += (userOffsetY / previewBox) * rect.h;
 
-  // لا نعيد توسيط الصورة أثناء التصدير.
-  // ملف الطباعة يطابق ما فعله العميل في المعاينة: زوم + تحريك، بدون قص تلقائي من البرنامج.
+  // منع ظهور فراغات قدر الإمكان عند السحب.
+  if(dw > rect.w){
+    dx = Math.min(rect.x, Math.max(rect.x + rect.w - dw, dx));
+  }else{
+    dx = rect.x + (rect.w - dw) / 2;
+  }
 
-  ctx.translate(centerX, centerY);
-  ctx.rotate(rotation * Math.PI / 180);
-  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  if(dh > rect.h){
+    dy = Math.min(rect.y, Math.max(rect.y + rect.h - dh, dy));
+  }else{
+    dy = rect.y + (rect.h - dh) / 2;
+  }
 
+  ctx.translate(dx + dw/2, dy + dh/2);
+  ctx.rotate(rotation * Math.PI/180);
+
+  const drawW = rotated ? dh : dw;
+  const drawH = rotated ? dw : dh;
+  ctx.drawImage(img, -drawW/2, -drawH/2, drawW, drawH);
   ctx.restore();
 }
 
