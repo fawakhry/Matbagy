@@ -1,74 +1,57 @@
-const MATBAGY_CACHE_VERSION = '2026-06-06-v95';
-const MATBAGY_CACHE_NAME = 'matbagy-banha-' + MATBAGY_CACHE_VERSION;
-const APP_SHELL = [
+const CACHE_NAME = 'matbagy-v98-cache';
+const ASSETS = [
   './',
-  './index.html',
-  './styles.css',
-  './config.js',
-  './app.js',
-  './manifest.webmanifest'
+  './index.html?v=98',
+  './styles.css?v=98',
+  './config.js?v=98',
+  './app.js?v=98',
+  './print-export.js?v=98',
+  './manifest.webmanifest?v=98'
 ];
-
-self.addEventListener('message', (event) => {
-  if(event.data && event.data.type === 'SKIP_WAITING'){
-    self.skipWaiting();
-  }
-});
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(MATBAGY_CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL.map(url => new Request(url, { cache: 'reload' }))))
-      .catch(() => null)
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => null))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.map(key => {
-        if(key !== MATBAGY_CACHE_NAME) return caches.delete(key);
-        return null;
-      })))
-      .then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      }))
+    ).then(() => self.clients.claim())
   );
 });
 
-async function networkFirst(request){
-  const cache = await caches.open(MATBAGY_CACHE_NAME);
-  try{
-    const response = await fetch(request, { cache: 'no-store' });
-    if(response && response.ok){
-      cache.put(request, response.clone()).catch(() => null);
-    }
-    return response;
-  }catch(err){
-    const cached = await cache.match(request);
-    if(cached) return cached;
-    throw err;
-  }
-}
-
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  if(request.method !== 'GET') return;
+  const req = event.request;
+  const url = new URL(req.url);
 
-  const url = new URL(request.url);
+  if (req.method !== 'GET') return;
 
-  // صفحات وملفات التطبيق لازم تتحقق من الشبكة أولًا عشان كل العملاء ياخدوا آخر تحديث.
-  if(request.mode === 'navigate'){
-    event.respondWith(networkFirst(new Request('./index.html', { cache: 'no-store' })));
+  // Always fetch fresh critical files
+  if (
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/app.js') ||
+    url.pathname.endsWith('/styles.css') ||
+    url.pathname.endsWith('/config.js') ||
+    url.pathname.endsWith('/print-export.js') ||
+    url.pathname.endsWith('/sw.js')
+  ) {
+    event.respondWith(
+      fetch(req, { cache: 'no-store' }).catch(() => caches.match(req))
+    );
     return;
   }
 
-  if(url.origin === self.location.origin){
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  // مكتبات CDN: شبكة أولًا ثم كاش احتياطي.
-  if(url.hostname.includes('cdnjs.cloudflare.com')){
-    event.respondWith(networkFirst(request));
-  }
+  event.respondWith(
+    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+      return res;
+    }).catch(() => cached))
+  );
 });
