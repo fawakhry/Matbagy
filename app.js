@@ -187,7 +187,7 @@ function renderPhotoList(){
       </div>
       <div class="adjust-actions">
         <button type="button" class="zoom-out-btn">- تصغير</button>
-        <input type="range" class="zoom-range" min="0.6" max="3" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
+        <input type="range" class="zoom-range" min="1" max="3" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
         <button type="button" class="zoom-in-btn">+ تكبير</button>
         <button type="button" class="rotate-btn">تدوير 90°</button>
         <button type="button" class="reset-btn">توسيط</button>
@@ -206,18 +206,18 @@ function renderPhotoList(){
       zoomRange.style.flex = '1';
     }
 
-    // عرض الصورة كاملة داخل مربع المعاينة بدون قص مبدئي.
-    // القص السابق كان بسبب cover/scale، فكان العميل يحرك صورة مقصوصة بالفعل.
+    // المعاينة هنا تمثل مقاس الطباعة الحقيقي: الخانة تفضل ممتلئة بالمقاس.
+    // الصورة الأصلية لا تُقص من الملف، لكن يتم قص العرض فقط داخل إطار المقاس مثل الطباعة.
     box.style.overflow = 'hidden';
     imgEl.style.width = '100%';
     imgEl.style.height = '100%';
-    imgEl.style.objectFit = 'contain';
+    imgEl.style.objectFit = 'cover';
     imgEl.style.transformOrigin = 'center center';
 
     const applyTransform = () => {
       const zoom = Number(p.zoom || 1);
       imgEl.style.transform = `translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${zoom})`;
-      if(zoomRange) zoomRange.value = zoom;
+      if(zoomRange) zoomRange.value = Math.min(3, Math.max(1, zoom));
     };
 
     const invalidateSheets = () => {
@@ -345,7 +345,7 @@ function renderPhotoList(){
         ev.preventDefault();
         const distance = getTouchDistance(ev);
         const nextZoom = pinchStartZoom * (distance / pinchStartDistance);
-        p.zoom = Math.min(3, Math.max(0.6, nextZoom));
+        p.zoom = Math.min(3, Math.max(1, nextZoom));
         applyTransform();
       }
     }, { passive:false });
@@ -501,10 +501,8 @@ function getRects(tpl, W, H, gap, margin){
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.save();
 
-  // الخانة نفسها تظل بمقاس الطباعة، لكن الصورة لا يتم قصها تلقائيًا.
-  // الحل هنا هو CONTAIN بدل COVER:
-  // - Cover = يملأ الخانة ويقص أجزاء من الصورة.
-  // - Contain = يظهر الصورة كاملة وقد يترك فراغ أبيض بسيط لو النسبة مختلفة.
+  // الخانة تظل بمقاس الطباعة الحقيقي وتكون ممتلئة بالكامل.
+  // لا نقص من ملف الصورة الأصلي؛ القص هنا قص عرض داخل إطار الخانة فقط مثل الطباعة.
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
@@ -520,9 +518,10 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const effectiveW = rotated ? sourceH : sourceW;
   const effectiveH = rotated ? sourceW : sourceH;
 
-  // لا نقص الصورة: نستخدم أصغر Scale عشان الصورة كلها تدخل داخل الخانة.
-  const baseScale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
-  const userZoom = Math.min(3, Math.max(0.6, Number(photo.zoom || 1)));
+  // للحفاظ على مقاس 10×15 / 6×9 الحقيقي، لازم الصورة تملأ الخانة بالكامل.
+  // لذلك نستخدم COVER كأساس، والزوم يبدأ من 1 ولا يسمح بتصغير يسبب فراغات بيضاء.
+  const baseScale = Math.max(rect.w / effectiveW, rect.h / effectiveH);
+  const userZoom = Math.min(3, Math.max(1, Number(photo.zoom || 1)));
   const scale = baseScale * userZoom;
 
   const drawW = sourceW * scale;
@@ -540,14 +539,14 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   centerX += (userOffsetX / previewBox) * rect.w;
   centerY += (userOffsetY / previewBox) * rect.h;
 
-  // منع خروج الصورة بالكامل خارج الخانة. نسمح بهوامش بيضاء عند اختلاف النسبة.
+  // منع ظهور فراغات بيضاء داخل الخانة عند التحريك.
   const halfEffectiveW = (rotated ? drawH : drawW) / 2;
   const halfEffectiveH = (rotated ? drawW : drawH) / 2;
 
-  const minCenterX = rect.x + Math.min(rect.w / 2, halfEffectiveW);
-  const maxCenterX = rect.x + rect.w - Math.min(rect.w / 2, halfEffectiveW);
-  const minCenterY = rect.y + Math.min(rect.h / 2, halfEffectiveH);
-  const maxCenterY = rect.y + rect.h - Math.min(rect.h / 2, halfEffectiveH);
+  const minCenterX = rect.x + rect.w - halfEffectiveW;
+  const maxCenterX = rect.x + halfEffectiveW;
+  const minCenterY = rect.y + rect.h - halfEffectiveH;
+  const maxCenterY = rect.y + halfEffectiveH;
 
   if(minCenterX <= maxCenterX){
     centerX = Math.min(maxCenterX, Math.max(minCenterX, centerX));
