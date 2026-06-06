@@ -2,7 +2,7 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
 
-const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v82';
+const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v100';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
@@ -230,37 +230,36 @@ function renderPhotoList(){
     const ctx = canvas.getContext('2d');
     const slider = card.querySelector('.zoom-slider');
     const zoomValue = card.querySelector('.zoom-value');
+    const zoomInBtn = card.querySelector('.zoom-in');
+    const zoomOutBtn = card.querySelector('.zoom-out');
+    const rotateBtn = card.querySelector('.rotate-btn');
+    const resetBtn = card.querySelector('.reset-btn');
 
     p.previewW = size.w;
     p.previewH = size.h;
 
     let previewImage = null;
 
-    const drawPreview = () => {
+    function drawPreview(){
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if(!previewImage) return;
-
-      drawImageSmart(
-        ctx,
-        previewImage,
-        { x:0, y:0, w:canvas.width, h:canvas.height },
-        p.rotation,
-        p
-      );
+      if(previewImage){
+        drawImageSmart(
+          ctx,
+          previewImage,
+          { x:0, y:0, w:canvas.width, h:canvas.height },
+          p.rotation,
+          p
+        );
+      }
 
       slider.value = String(p.zoom);
       zoomValue.textContent = `${Math.round(p.zoom * 100)}%`;
-    };
+    }
 
-    loadImage(p.url).then((img)=>{
-      previewImage = img;
-      drawPreview();
-    }).catch(()=>{});
-
-    const invalidateSheets = () => {
+    function invalidateSheets(){
       state.order = null;
       state.outputs = [];
       state.cleanOutputs = [];
@@ -268,111 +267,133 @@ function renderPhotoList(){
       $('downloadBtn').classList.add('hidden');
       $('shareBtn').classList.add('hidden');
       $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
-    };
+    }
 
-    let dragging = false;
-    let startX = 0, startY = 0, baseX = 0, baseY = 0;
-
-    const startDrag = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      dragging = true;
-
-      const pt = getPointerPoint(ev);
-      startX = pt.x;
-      startY = pt.y;
-      baseX = Number(p.offsetX || 0);
-      baseY = Number(p.offsetY || 0);
-
-      box.classList.add('dragging');
-
-      if(ev.pointerId !== undefined && box.setPointerCapture){
-        try { box.setPointerCapture(ev.pointerId); } catch(err) {}
-      }
-    };
-
-    const moveDrag = (ev) => {
-      if(!dragging) return;
-
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      const pt = getPointerPoint(ev);
-      p.offsetX = baseX + (pt.x - startX);
-      p.offsetY = baseY + (pt.y - startY);
-
+    loadImage(p.url).then((img)=>{
+      previewImage = img;
       drawPreview();
-    };
-
-    const endDrag = (ev) => {
-      if(!dragging) return;
-
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      dragging = false;
-      box.classList.remove('dragging');
-
-      if(ev.pointerId !== undefined && box.releasePointerCapture){
-        try { box.releasePointerCapture(ev.pointerId); } catch(err) {}
-      }
-
-      invalidateSheets();
-    };
-
-    box.addEventListener('pointerdown', startDrag);
-    box.addEventListener('pointermove', moveDrag);
-    box.addEventListener('pointerup', endDrag);
-    box.addEventListener('pointercancel', endDrag);
-    box.addEventListener('lostpointercapture', () => {
-      if(dragging){
-        dragging = false;
-        box.classList.remove('dragging');
-        invalidateSheets();
-      }
+    }).catch(()=>{
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('تعذر تحميل الصورة', canvas.width/2, canvas.height/2);
     });
 
-    card.querySelector('.zoom-in').onclick = (ev) => {
+    // ===== Zoom buttons =====
+    zoomInBtn.addEventListener('click', function(ev){
       ev.preventDefault();
+      ev.stopPropagation();
       p.zoom = Math.min(3, +(Number(p.zoom || 1) + 0.1).toFixed(2));
       drawPreview();
       invalidateSheets();
-    };
+    });
 
-    card.querySelector('.zoom-out').onclick = (ev) => {
+    zoomOutBtn.addEventListener('click', function(ev){
       ev.preventDefault();
+      ev.stopPropagation();
       p.zoom = Math.max(1, +(Number(p.zoom || 1) - 0.1).toFixed(2));
       drawPreview();
       invalidateSheets();
-    };
+    });
 
-    slider.oninput = () => {
+    slider.addEventListener('input', function(ev){
+      ev.preventDefault();
       p.zoom = Math.max(1, Math.min(3, Number(slider.value || 1)));
       drawPreview();
-    };
+    });
 
-    slider.onchange = () => {
+    slider.addEventListener('change', function(){
       invalidateSheets();
-    };
+    });
 
-    card.querySelector('.rotate-btn').onclick = (ev) => {
+    // ===== Rotate / reset =====
+    rotateBtn.addEventListener('click', function(ev){
       ev.preventDefault();
+      ev.stopPropagation();
       p.rotation = (Number(p.rotation || 0) + 90) % 360;
       p.offsetX = 0;
       p.offsetY = 0;
       drawPreview();
       invalidateSheets();
-    };
+    });
 
-    card.querySelector('.reset-btn').onclick = (ev) => {
+    resetBtn.addEventListener('click', function(ev){
       ev.preventDefault();
+      ev.stopPropagation();
       p.offsetX = 0;
       p.offsetY = 0;
       p.zoom = 1;
       drawPreview();
       invalidateSheets();
-    };
+    });
+
+    // ===== Drag mouse/touch =====
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let baseX = 0;
+    let baseY = 0;
+
+    function beginDrag(clientX, clientY){
+      dragging = true;
+      startX = clientX;
+      startY = clientY;
+      baseX = Number(p.offsetX || 0);
+      baseY = Number(p.offsetY || 0);
+      box.classList.add('dragging');
+    }
+
+    function updateDrag(clientX, clientY){
+      if(!dragging) return;
+      p.offsetX = baseX + (clientX - startX);
+      p.offsetY = baseY + (clientY - startY);
+      drawPreview();
+    }
+
+    function finishDrag(){
+      if(!dragging) return;
+      dragging = false;
+      box.classList.remove('dragging');
+      invalidateSheets();
+    }
+
+    box.addEventListener('mousedown', function(ev){
+      ev.preventDefault();
+      beginDrag(ev.clientX, ev.clientY);
+    });
+
+    window.addEventListener('mousemove', function(ev){
+      if(!dragging) return;
+      ev.preventDefault();
+      updateDrag(ev.clientX, ev.clientY);
+    });
+
+    window.addEventListener('mouseup', function(){
+      finishDrag();
+    });
+
+    box.addEventListener('touchstart', function(ev){
+      if(!ev.touches || !ev.touches.length) return;
+      ev.preventDefault();
+      const t = ev.touches[0];
+      beginDrag(t.clientX, t.clientY);
+    }, { passive:false });
+
+    box.addEventListener('touchmove', function(ev){
+      if(!dragging || !ev.touches || !ev.touches.length) return;
+      ev.preventDefault();
+      const t = ev.touches[0];
+      updateDrag(t.clientX, t.clientY);
+    }, { passive:false });
+
+    box.addEventListener('touchend', function(ev){
+      ev.preventDefault();
+      finishDrag();
+    }, { passive:false });
+
+    box.addEventListener('touchcancel', function(){
+      finishDrag();
+    });
 
     list.appendChild(card);
   });
