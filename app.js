@@ -2,6 +2,8 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
 
+const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v81';
+
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
 
@@ -29,7 +31,19 @@ function getDeviceId(){
   return id;
 }
 
+
+function forceReloginIfNeeded(){
+  const savedVersion = localStorage.getItem('mb_force_relogin_version');
+
+  if(savedVersion !== FORCE_RELOGIN_VERSION){
+    // إخراج كل العملاء من النسخ القديمة وإجبارهم على التفعيل من جديد
+    localStorage.removeItem('mb_client');
+    localStorage.setItem('mb_force_relogin_version', FORCE_RELOGIN_VERSION);
+  }
+}
+
 function init(){
+  forceReloginIfNeeded();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   bindEvents();
   const saved = localStorage.getItem('mb_client');
