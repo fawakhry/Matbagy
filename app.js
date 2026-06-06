@@ -442,7 +442,7 @@ async function generateSheets(){
     return;
   }
 
-  $('status').textContent = 'جاري إنشاء شيتات عالية الجودة بعلامة مطبعجي بنها...';
+  $('status').textContent = 'جاري إنشاء شيتات عالية الجودة...';
   await new Promise(resolve => setTimeout(resolve, 200));
   $('preview').innerHTML = '';
   state.outputs = [];
@@ -572,7 +572,8 @@ async function drawSheet(photos, tpl, withWatermark=true){
     }
   }
 
-  if(withWatermark) drawWatermark(ctx, W, H);
+  // Watermark disabled in v109
+  // if(withWatermark) drawWatermark(ctx, W, H);
 
   ctx.fillStyle = '#cbd5e1';
   ctx.font = `${Math.round(dpi*0.065)}px sans-serif`;
@@ -592,7 +593,7 @@ function drawWatermark(ctx, W, H){
   ctx.rotate(-0.45);
   ctx.fillText('مطبعجي بنها', 0, -40);
   ctx.font = `${Math.round(W/24)}px sans-serif`;
-  ctx.fillText('نسخة معاينة', 0, 70);
+  ctx.fillText('معاينة', 0, 70);
   ctx.restore();
 }
 

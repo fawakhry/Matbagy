@@ -1,12 +1,12 @@
-const CACHE_NAME = 'matbagy-v107-cache';
+const CACHE_NAME = 'matbagy-v109-cache';
 const ASSETS = [
   './',
-  './index.html?v=107',
-  './styles.css?v=107',
-  './config.js?v=107',
-  './app.js?v=107',
-  './print-export.js?v=107',
-  './manifest.webmanifest?v=107'
+  './index.html?v=109',
+  './styles.css?v=109',
+  './config.js?v=109',
+  './app.js?v=109',
+  './print-export.js?v=109',
+  './manifest.webmanifest?v=109'
 ];
 
 self.addEventListener('install', (event) => {
