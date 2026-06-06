@@ -269,8 +269,9 @@ function renderPhotoList(){
       $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
     }
 
-    loadImage(p.url).then((img)=>{
+    Promise.resolve(p.img || loadImage(p.url)).then((img)=>{
       previewImage = img;
+      p.img = img;
       drawPreview();
     }).catch(()=>{
       ctx.fillStyle = '#ef4444';
@@ -524,7 +525,8 @@ async function drawSheet(photos, tpl, withWatermark=true){
     const photo = photos[i];
 
     try{
-      const img = await loadImage(photo.url);
+      const img = photo.img || await loadImage(photo.url);
+      photo.img = img;
       const rotation = rect.forceRotate ? 90 : Number(photo.rotation || 0);
 
       drawImageSmart(ctx, img, rect, rotation, photo);
@@ -604,8 +606,8 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const r = ((Number(rotation || 0) % 360) + 360) % 360;
   const rotated90 = r === 90 || r === 270;
 
-  const originalW = img.naturalWidth || img.width;
-  const originalH = img.naturalHeight || img.height;
+  const originalW = Number(img.naturalWidth || img.videoWidth || img.width || 0);
+  const originalH = Number(img.naturalHeight || img.videoHeight || img.height || 0);
 
   if(!originalW || !originalH){
     ctx.restore();
@@ -615,7 +617,10 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const fittedW = rotated90 ? originalH : originalW;
   const fittedH = rotated90 ? originalW : originalH;
 
+  // Contain: الصورة كاملة بدون قص ولا مط.
   const containScale = Math.min(rect.w / fittedW, rect.h / fittedH);
+
+  // زوم موحد يحافظ على نسبة الطول والعرض.
   const zoom = Math.max(1, Number(photo.zoom || 1));
   const scale = containScale * zoom;
 
@@ -642,17 +647,17 @@ function loadImage(src){
   return new Promise((resolve, reject)=>{
     const img = new Image();
 
-    img.onload = async () => {
-      try{
-        if(img.decode) await img.decode().catch(()=>{});
-      }catch(e){}
+    img.onload = () => {
       resolve(img);
     };
 
     img.onerror = () => reject(new Error('تعذر تحميل الصورة'));
 
-    // لا نضع crossOrigin مع blob/objectURL لأنه قد يسبب مشاكل في بعض المتصفحات.
     img.src = src;
+
+    if(img.complete && (img.naturalWidth || img.width)){
+      resolve(img);
+    }
   });
 }
 
