@@ -442,7 +442,7 @@ async function generateSheets(){
     return;
   }
 
-  $('status').textContent = 'جاري إنشاء شيتات عالية الجودة...';
+  $('status').textContent = 'جاري إنشاء الشيتات عالية الجودة...';
   await new Promise(resolve => setTimeout(resolve, 200));
   $('preview').innerHTML = '';
   state.outputs = [];
@@ -573,7 +573,7 @@ async function drawSheet(photos, tpl, withWatermark=true){
   }
 
   // Watermark disabled in v109
-  // if(withWatermark) drawWatermark(ctx, W, H);
+  // // Watermark disabled in v110
 
   ctx.fillStyle = '#cbd5e1';
   ctx.font = `${Math.round(dpi*0.065)}px sans-serif`;
