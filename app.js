@@ -13,7 +13,102 @@ const templates = {
   '7x10': { label:'7×10', count:19, wCm:7, hCm:10, mode:'mixed' }
 };
 
+injectManualAdjustStyles();
 init();
+
+
+function injectManualAdjustStyles(){
+  if(document.getElementById('matbagy-manual-adjust-style')) return;
+  const style = document.createElement('style');
+  style.id = 'matbagy-manual-adjust-style';
+  style.textContent = `
+    .photo-list{
+      display:grid !important;
+      grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)) !important;
+      gap:16px !important;
+      align-items:start !important;
+    }
+    .photo-card.adjustable-card{
+      display:flex !important;
+      flex-direction:column !important;
+      gap:10px !important;
+      padding:12px !important;
+      border:1px solid #e5e7eb !important;
+      border-radius:16px !important;
+      background:#fff !important;
+      overflow:visible !important;
+    }
+    .adjust-box{
+      width:100% !important;
+      max-width:170px !important;
+      margin:0 auto !important;
+      border:2px dashed #7fc8bd !important;
+      border-radius:14px !important;
+      background:#fff !important;
+      overflow:hidden !important;
+      position:relative !important;
+      touch-action:none !important;
+      user-select:none !important;
+    }
+    .adjust-img{
+      user-select:none !important;
+      -webkit-user-drag:none !important;
+      cursor:grab !important;
+    }
+    .adjust-box.dragging .adjust-img{ cursor:grabbing !important; }
+    .adjust-actions{
+      display:flex !important;
+      flex-direction:column !important;
+      gap:8px !important;
+      width:100% !important;
+    }
+    .zoom-control-row{
+      display:grid !important;
+      grid-template-columns:44px minmax(90px, 1fr) 44px !important;
+      gap:8px !important;
+      align-items:center !important;
+      width:100% !important;
+    }
+    .action-control-row{
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:8px !important;
+      width:100% !important;
+    }
+    .zoom-range{
+      width:100% !important;
+      min-width:0 !important;
+      margin:0 !important;
+    }
+    .adjust-actions button{
+      min-height:40px !important;
+      padding:8px 6px !important;
+      border-radius:12px !important;
+      white-space:normal !important;
+      line-height:1.15 !important;
+      font-size:13px !important;
+    }
+    .drag-hint{
+      font-size:12px !important;
+      line-height:1.5 !important;
+      color:#64748b !important;
+      text-align:center !important;
+    }
+    .sheet-preview img{
+      width:100% !important;
+      height:auto !important;
+      object-fit:contain !important;
+      background:#fff !important;
+    }
+    @media (max-width:520px){
+      .photo-list{ grid-template-columns:repeat(2, minmax(0, 1fr)) !important; gap:10px !important; }
+      .photo-card.adjustable-card{ padding:8px !important; }
+      .adjust-actions button{ font-size:12px !important; padding:7px 4px !important; }
+      .zoom-control-row{ grid-template-columns:38px minmax(70px, 1fr) 38px !important; gap:5px !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 function getDeviceId(){
   let id = localStorage.getItem('mb_device_id');
@@ -154,7 +249,7 @@ async function handleFiles(e){
     if(!file.type.startsWith('image/')) continue;
     const url = URL.createObjectURL(file);
     const img = await loadImage(url);
-    const rotation = shouldRotate(img, templates[state.template]) ? 90 : 0;
+    const rotation = 0; // لا تدوير تلقائي: العميل يضبط التدوير بنفسه
     state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0, zoom:1, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
   }
   renderPhotoList();
@@ -186,11 +281,15 @@ function renderPhotoList(){
         <img src="${p.url}" class="adjust-img">
       </div>
       <div class="adjust-actions">
-        <button type="button" class="zoom-out-btn">- تصغير</button>
-        <input type="range" class="zoom-range" min="0.5" max="4" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
-        <button type="button" class="zoom-in-btn">+ تكبير</button>
-        <button type="button" class="rotate-btn">تدوير 90°</button>
-        <button type="button" class="reset-btn">توسيط</button>
+        <div class="zoom-control-row">
+          <button type="button" class="zoom-out-btn">−</button>
+          <input type="range" class="zoom-range" min="0.2" max="6" step="0.05" value="${p.zoom}" aria-label="تكبير وتصغير الصورة">
+          <button type="button" class="zoom-in-btn">+</button>
+        </div>
+        <div class="action-control-row">
+          <button type="button" class="rotate-btn">تدوير 90°</button>
+          <button type="button" class="reset-btn">توسيط</button>
+        </div>
       </div>
       <div class="drag-hint">اسحب الصورة للتحريك، واستخدم الزوم للتكبير أو التصغير قبل إنشاء الشيت</div>
     `;
@@ -210,6 +309,7 @@ function renderPhotoList(){
     // لا نعتمد على object-fit فقط، بل نحسب مقاس contain يدويًا حتى نتجنب أي CSS قد يسبب crop.
     box.style.overflow = 'hidden';
     box.style.position = 'relative';
+    box.style.aspectRatio = `${templates[state.template].wCm} / ${templates[state.template].hCm}`;
     imgEl.style.setProperty('position', 'absolute', 'important');
     imgEl.style.setProperty('left', '50%', 'important');
     imgEl.style.setProperty('top', '50%', 'important');
@@ -233,6 +333,8 @@ function renderPhotoList(){
       const rect = box.getBoundingClientRect();
       const boxW = Math.max(1, rect.width || 118);
       const boxH = Math.max(1, rect.height || 160);
+      p.previewBoxW = boxW;
+      p.previewBoxH = boxH;
       const preview = getPreviewNaturalSize();
       const containScale = Math.min(boxW / preview.w, boxH / preview.h);
       const displayW = preview.w * containScale;
@@ -252,7 +354,7 @@ function renderPhotoList(){
       layoutPreviewImage();
       const zoom = Number(p.zoom || 1);
       imgEl.style.transform = `translate(-50%, -50%) translate3d(${p.offsetX}px, ${p.offsetY}px, 0) rotate(${p.rotation}deg) scale(${zoom})`;
-      if(zoomRange) zoomRange.value = Math.min(4, Math.max(0.5, zoom));
+      if(zoomRange) zoomRange.value = Math.min(6, Math.max(0.2, zoom));
     };
 
     const invalidateSheets = () => {
@@ -327,7 +429,7 @@ function renderPhotoList(){
     };
 
     const setZoom = (value) => {
-      const z = Math.min(4, Math.max(0.5, Number(value) || 1));
+      const z = Math.min(6, Math.max(0.2, Number(value) || 1));
       p.zoom = Math.round(z * 100) / 100;
       applyTransform();
       invalidateSheets();
@@ -387,7 +489,7 @@ function renderPhotoList(){
         ev.preventDefault();
         const distance = getTouchDistance(ev);
         const nextZoom = pinchStartZoom * (distance / pinchStartDistance);
-        p.zoom = Math.min(4, Math.max(0.5, nextZoom));
+        p.zoom = Math.min(6, Math.max(0.2, nextZoom));
         applyTransform();
       }
     }, { passive:false });
@@ -566,7 +668,7 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   // قد تظهر حواف/فراغات بيضاء إذا كانت نسبة الصورة مختلفة عن مقاس الطباعة.
   // عند تكبير العميل يدويًا فقط، قد يتم قص جزء داخل الإطار حسب اختياره.
   const baseScale = Math.min(rect.w / effectiveW, rect.h / effectiveH);
-  const userZoom = Math.min(4, Math.max(0.5, Number(photo.zoom || 1)));
+  const userZoom = Math.min(6, Math.max(0.2, Number(photo.zoom || 1)));
   const scale = baseScale * userZoom;
 
   const drawW = sourceW * scale;
@@ -578,33 +680,15 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
 
   // تحويل سحب العميل من معاينة صغيرة إلى الشيت النهائي.
   // التحريك هنا اختياري، ومع وضع عدم القص لن يقطع الصورة من المصدر.
-  const previewBox = 118;
+  const previewBoxW = Math.max(1, Number(photo.previewBoxW || 118));
+  const previewBoxH = Math.max(1, Number(photo.previewBoxH || 160));
   const userOffsetX = Number(photo.offsetX || 0);
   const userOffsetY = Number(photo.offsetY || 0);
-  centerX += (userOffsetX / previewBox) * rect.w;
-  centerY += (userOffsetY / previewBox) * rect.h;
+  centerX += (userOffsetX / previewBoxW) * rect.w;
+  centerY += (userOffsetY / previewBoxH) * rect.h;
 
-  // ضبط التحريك: إذا الصورة أصغر من الخانة في اتجاه معين تظل في المنتصف.
-  // إذا كبرها العميل بالزوم، نسمح بالتحريك داخل حدود الإطار.
-  const halfEffectiveW = (rotated ? drawH : drawW) / 2;
-  const halfEffectiveH = (rotated ? drawW : drawH) / 2;
-
-  const minCenterX = rect.x + rect.w - halfEffectiveW;
-  const maxCenterX = rect.x + halfEffectiveW;
-  const minCenterY = rect.y + rect.h - halfEffectiveH;
-  const maxCenterY = rect.y + halfEffectiveH;
-
-  if(minCenterX <= maxCenterX){
-    centerX = Math.min(maxCenterX, Math.max(minCenterX, centerX));
-  }else{
-    centerX = rect.x + rect.w / 2;
-  }
-
-  if(minCenterY <= maxCenterY){
-    centerY = Math.min(maxCenterY, Math.max(minCenterY, centerY));
-  }else{
-    centerY = rect.y + rect.h / 2;
-  }
+  // لا نعيد توسيط الصورة أثناء التصدير.
+  // ملف الطباعة يطابق ما فعله العميل في المعاينة: زوم + تحريك، بدون قص تلقائي من البرنامج.
 
   ctx.translate(centerX, centerY);
   ctx.rotate(rotation * Math.PI / 180);
