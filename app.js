@@ -437,10 +437,10 @@ async function buildOutputs(withWatermark){
   const outputs = [];
   for(let i=0; i<chunks.length; i++){
     const canvas = await drawSheet(chunks[i], tpl, withWatermark);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.96));
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1.0));
     const url = URL.createObjectURL(blob);
     const suffix = withWatermark ? '_Preview' : '_Print';
-    const name = `Motabagy_${tpl.label}_Sheet_${String(i+1).padStart(3,'0')}${suffix}.jpg`;
+    const name = `Motabagy_${tpl.label}_Sheet_${String(i+1).padStart(3,'0')}${suffix}.png`;
     outputs.push({ blob, url, name });
   }
   return outputs;
@@ -452,17 +452,51 @@ async function drawSheet(photos, tpl, withWatermark=true){
   const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
   const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
   const margin = Math.round(((CONFIG.outerMarginMm || 0) / 10) * CM_TO_IN * dpi);
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
+
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+
+  const ctx = c.getContext('2d', { alpha:false });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
   const rects = getRects(tpl, W, H, gap, margin);
+
   for(let i=0; i<Math.min(photos.length, rects.length); i++){
-    const img = await loadImage(photos[i].url); const rect = rects[i]; const rotation = rect.forceRotate ? 90 : photos[i].rotation;
-    drawImageSmart(ctx, img, rect, rotation, photos[i]);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1, Math.round(dpi/180)); ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    const rect = rects[i];
+    const photo = photos[i];
+
+    try{
+      const img = await loadImage(photo.url);
+      const rotation = rect.forceRotate ? 90 : Number(photo.rotation || 0);
+
+      drawImageSmart(ctx, img, rect, rotation, photo);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1, Math.round(dpi/180));
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    }catch(err){
+      // لو صورة فشلت، نترك مكانها أبيض ونكتب علامة بسيطة بدل ما الشيت كله يطلع أسود.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = Math.max(1, Math.round(dpi/180));
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.fillStyle = '#64748b';
+      ctx.font = `${Math.round(dpi*0.08)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('تعذر تحميل الصورة', rect.x + rect.w/2, rect.y + rect.h/2);
+    }
   }
+
   if(withWatermark) drawWatermark(ctx, W, H);
-  ctx.fillStyle = '#cbd5e1'; ctx.font = `${Math.round(dpi*0.065)}px sans-serif`; ctx.textAlign='left';
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = `${Math.round(dpi*0.065)}px sans-serif`;
+  ctx.textAlign='left';
   ctx.fillText('Powered by Matbagy Banha', Math.max(8, margin), H - Math.max(8, margin/2));
+
   return c;
 }
 
@@ -504,7 +538,7 @@ function getRects(tpl, W, H, gap, margin){
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.save();
 
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
 
   ctx.beginPath();
@@ -517,13 +551,15 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const originalW = img.naturalWidth || img.width;
   const originalH = img.naturalHeight || img.height;
 
+  if(!originalW || !originalH){
+    ctx.restore();
+    return;
+  }
+
   const fittedW = rotated90 ? originalH : originalW;
   const fittedH = rotated90 ? originalW : originalH;
 
-  // البداية Contain: الصورة كاملة بدون قص وبدون مط.
   const containScale = Math.min(rect.w / fittedW, rect.h / fittedH);
-
-  // الزوم موحد للطول والعرض معًا.
   const zoom = Math.max(1, Number(photo.zoom || 1));
   const scale = containScale * zoom;
 
@@ -536,6 +572,9 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   const offsetX = (Number(photo.offsetX || 0) / previewW) * rect.w;
   const offsetY = (Number(photo.offsetY || 0) / previewH) * rect.h;
 
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
   ctx.translate(rect.x + rect.w / 2 + offsetX, rect.y + rect.h / 2 + offsetY);
   ctx.rotate(r * Math.PI / 180);
   ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
@@ -543,7 +582,24 @@ function drawImageSmart(ctx, img, rect, rotation, photo = {}){
   ctx.restore();
 }
 
-function loadImage(src){ return new Promise((res,rej)=>{ const i = new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
+function loadImage(src){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+
+    img.onload = async () => {
+      try{
+        if(img.decode) await img.decode().catch(()=>{});
+      }catch(e){}
+      resolve(img);
+    };
+
+    img.onerror = () => reject(new Error('تعذر تحميل الصورة'));
+
+    // لا نضع crossOrigin مع blob/objectURL لأنه قد يسبب مشاكل في بعض المتصفحات.
+    img.src = src;
+  });
+}
+
 function chunk(arr, n){ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; }
 function downloadAll(){ state.outputs.forEach(o=>{ const a=document.createElement('a'); a.href=o.url; a.download=o.name; a.click(); }); }
 
@@ -564,7 +620,7 @@ async function shareWork(){
     $('status').textContent = 'جاري إنشاء رقم الطلب وتجهيز نسخة المطبعة...';
     const order = await ensureOrderCreated();
     state.cleanOutputs = await buildOutputs(false);
-    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/jpeg' }));
+    const files = state.cleanOutputs.map(o => new File([o.blob], o.name, { type:'image/png' }));
     const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
     const text = `طلب صور جديد من ${client.name || 'عميل'}\nرقم الطلب: ${order.orderId}\nرقم العميل: ${client.phone || ''}\nنوع العميل: ${client.type || ''}\nالقالب: ${templates[state.template].label}\nعدد الصور: ${state.photos.length}\nعدد الشيتات: ${state.outputs.length}`;
     $('status').textContent = `تم إنشاء رقم الطلب: ${order.orderId}`;
