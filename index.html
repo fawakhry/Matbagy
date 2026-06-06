@@ -10,6 +10,7 @@
 </head>
 <body>
   <div class="watermark">مطبعجي بنها</div>
+
   <main class="app-shell">
     <header class="topbar">
       <div>
@@ -21,62 +22,115 @@
 
     <section id="activationView" class="card">
       <h1>تفعيل البرنامج</h1>
-      <p>اكتب رقم الهاتف المسجل لدى مطبعجي بنها. سيتم التفعيل تلقائيًا إذا كان الرقم موجودًا ومفعلًا في قاعدة العملاء.</p>
+      <p>
+        اكتب رقم الهاتف المسجل لدى مطبعجي بنها.
+        سيتم التفعيل تلقائيًا إذا كان الرقم موجودًا ومفعلًا في قاعدة العملاء.
+      </p>
+
       <label>رقم الهاتف</label>
-      <input id="activationCode" type="tel" inputmode="numeric" placeholder="مثال: 01036112077" autocomplete="tel" />
+      <input
+        id="activationCode"
+        type="tel"
+        inputmode="numeric"
+        placeholder="مثال: 01036112077"
+        autocomplete="tel"
+      />
+
       <button id="activateBtn" class="primary">تفعيل التطبيق</button>
       <p id="activationMsg" class="msg"></p>
-      <div class="hint">التفعيل يتم برقم الهاتف فقط، ولا تحتاج إلى إدخال الرقم مرة أخرى على نفس الجهاز.</div>
+
+      <div class="hint">
+        التفعيل يتم برقم الهاتف فقط، ولا تحتاج إلى إدخال الرقم مرة أخرى على نفس الجهاز.
+      </div>
     </section>
 
     <section id="appView" class="hidden">
       <section class="card welcome">
         <div>
           <h2 id="helloTitle">أهلاً بك</h2>
-          <p>اختار المقاس وارفع الصور، والبرنامج يرُص الشيتات تلقائيًا مع الحفاظ على الملامح وملء الخانات بأفضل شكل ممكن.</p>
+          <p>
+            اختار المقاس وارفع الصور، والبرنامج يرُص الشيتات تلقائيًا
+            مع الحفاظ على الملامح وملء الخانات بأفضل شكل ممكن.
+          </p>
         </div>
         <button id="logoutBtn" class="danger ghost">إلغاء التفعيل</button>
       </section>
 
       <section class="card">
         <h2>1) اختار القالب</h2>
+
         <div class="templates">
-          <button class="template active" data-template="6x9"><b>6×9</b><span>25 صورة - 5×5</span></button>
-          <button class="template" data-template="10x15"><b>10×15</b><span>9 صور - 3×3</span></button>
-          <button class="template" data-template="7x10"><b>7×10</b><span>19 صورة - 4×4 + 3 مقلوبة</span></button>
+          <button class="template active" data-template="6x9">
+            <b>6×9</b>
+            <span>25 صورة - 5×5</span>
+          </button>
+
+          <button class="template" data-template="10x15">
+            <b>10×15</b>
+            <span>9 صور - 3×3</span>
+          </button>
+
+          <button class="template" data-template="7x10">
+            <b>7×10</b>
+            <span>19 صورة - 4×4 + 3 مقلوبة</span>
+          </button>
         </div>
       </section>
 
       <section class="card">
         <h2>2) ارفع الصور</h2>
+
         <input id="fileInput" type="file" accept="image/*" multiple />
+
         <div class="hint quality-note">
           يرجى إرسال الصور كملفات أصلية وليس كصور واتساب مضغوطة للحصول على أفضل جودة طباعة.
         </div>
+
         <div class="row">
           <button id="clearBtn" class="ghost">مسح الصور</button>
           <button id="rotateAllBtn" class="ghost">تدوير الصور المحتاجة</button>
         </div>
+
         <div class="smart-mode-note">
-          الوضع الذكي مفعل تلقائيًا: يحافظ على الوجوه والملامح قدر الإمكان ويملأ الخانة بأفضل توزيع بدون اختيارات معقدة.
+          الوضع الذكي مفعل تلقائيًا: يحافظ على الوجوه والملامح قدر الإمكان
+          ويملأ الخانة بأفضل توزيع بدون اختيارات معقدة.
         </div>
+
         <div id="photoList" class="photo-list"></div>
       </section>
 
       <section class="card">
         <h2>3) إنشاء الشيتات</h2>
+
         <button id="generateBtn" class="primary">إنشاء الشيتات</button>
+
         <p id="status" class="msg"></p>
+
         <div id="preview" class="preview"></div>
+
         <div class="row">
-          <button id="downloadBtn" class="primary hidden">تحميل الشيتات</button>
+          <button id="downloadBtn" class="primary hidden">تحميل ملف الطباعة PDF</button>
           <button id="shareBtn" class="primary hidden">إرسال لمطبعجي بنها</button>
+        </div>
+
+        <div id="printFileNote" class="hint hidden">
+          مهم جدًا: لا ترسل الشيتات كصور على واتساب حتى لا تقل الجودة.
+          حمّل ملف الطباعة PDF ثم أرسله كـ ملف / Document.
         </div>
       </section>
     </section>
   </main>
 
   <script src="config.js"></script>
+
+  <!-- مكتبات تصدير ملف الطباعة بجودة عالية -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- ملف تصدير الشيتات PDF / ZIP -->
+  <script src="print-export.js"></script>
+
+  <!-- ملف تشغيل التطبيق الأساسي -->
   <script src="app.js"></script>
 </body>
 </html>
