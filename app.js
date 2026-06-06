@@ -1,4 +1,56 @@
 const CONFIG = window.MB_CONFIG || {};
+
+const MATBAGY_APP_VERSION = '2026-06-06-v95';
+
+function setupAutoUpdate(){
+  try{
+    window.MATBAGY_APP_VERSION = MATBAGY_APP_VERSION;
+
+    // امسح كاش النسخ القديمة بدون حذف بيانات التفعيل أو Device ID
+    const savedVersion = localStorage.getItem('mb_app_version');
+    if(savedVersion !== MATBAGY_APP_VERSION){
+      localStorage.setItem('mb_app_version', MATBAGY_APP_VERSION);
+      if(window.caches){
+        caches.keys()
+          .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+          .catch(()=>{});
+      }
+    }
+
+    if(!('serviceWorker' in navigator)) return;
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js?v=' + encodeURIComponent(MATBAGY_APP_VERSION), { updateViaCache: 'none' })
+        .then(reg => {
+          if(reg.waiting){
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          reg.addEventListener('updatefound', () => {
+            const worker = reg.installing;
+            if(!worker) return;
+            worker.addEventListener('statechange', () => {
+              if(worker.state === 'installed' && navigator.serviceWorker.controller){
+                worker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+
+          reg.update().catch(()=>{});
+          setInterval(() => reg.update().catch(()=>{}), 15 * 60 * 1000);
+        })
+        .catch(()=>{});
+    });
+  }catch(e){}
+}
+
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null };
 
@@ -13,6 +65,7 @@ const templates = {
   '7x10': { label:'7×10', count:19, wCm:7, hCm:10, mode:'mixed' }
 };
 
+setupAutoUpdate();
 injectManualAdjustStyles();
 init();
 
@@ -174,10 +227,6 @@ async function checkSavedClientOnServer(client){
 
 async function init(){
   forceReloginIfNeeded();
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  }
 
   bindEvents();
 
