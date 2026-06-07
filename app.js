@@ -958,12 +958,9 @@ async function shareWork(){
   }
 
   if(state.outputs.length === 0){
-    $('status').textContent = 'اضغط إنشاء الشيتات أولًا لمراجعة الطلب قبل الإرسال.';
+    $('status').textContent = 'اضغط إنشاء الشيتات أولًا قبل تجهيز ملف الإرسال.';
     return;
   }
-
-  const approved = await showSendReviewModal();
-  if(!approved) return;
 
   state.isSending = true;
   const shareBtn = $('shareBtn');
@@ -972,7 +969,7 @@ async function shareWork(){
   shareBtn.textContent = 'جاري التجهيز...';
 
   try{
-    $('status').textContent = 'جاري تجهيز ملف ZIP للطباعة HD 300DPI...';
+    $('status').textContent = 'جاري تجهيز ملف الطباعة ZIP HD 300DPI...';
 
     const order = await ensureOrderCreated();
 
@@ -1022,10 +1019,10 @@ async function shareWork(){
 
     alert(
       'تم تجهيز وتحميل ملف الطباعة ✅\n\n' +
-      'الخطوة الأخيرة:\n' +
-      'سيتم فتح واتساب الآن.\n' +
-      'من علامة المرفقات اختر Document / مستند، ثم اختر ملف ZIP من التنزيلات.\n\n' +
-      'لا ترسله كصورة حتى لا تقل الجودة.'
+      'سيتم فتح واتساب الآن.\n\n' +
+      'مهم جدًا:\n' +
+      'من واتساب اختر المرفقات ثم Document / مستند، وارسل ملف ZIP الذي تم تحميله.\n\n' +
+      'لا ترسل الملف كصورة حتى لا تقل الجودة.'
     );
 
     const phone = (CONFIG.whatsappNumber || '').replace(/[^\\d]/g, '');
