@@ -2,10 +2,57 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
 
-const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v100';
+const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v115';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
+
+
+function apiGet(params = {}) {
+  return new Promise((resolve, reject) => {
+    if (!CONFIG.activationEndpoint) {
+      reject(new Error('رابط النظام غير مضبوط.'));
+      return;
+    }
+
+    const callbackName = 'mbJsonp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let timer = null;
+    let finished = false;
+
+    function cleanup() {
+      if (finished) return;
+      finished = true;
+      try { delete window[callbackName]; } catch(e) { window[callbackName] = undefined; }
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+      if (timer) clearTimeout(timer);
+    }
+
+    window[callbackName] = function(data) {
+      cleanup();
+      resolve(data);
+    };
+
+    const query = new URLSearchParams({
+      ...params,
+      callback: callbackName,
+      _ts: String(Date.now())
+    });
+
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('تعذر الاتصال بالنظام. افتح التطبيق من جديد أو امسح الكاش.'));
+    };
+
+    timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('انتهت مهلة الاتصال بالنظام. جرّب مرة أخرى.'));
+    }, 20000);
+
+    script.src = CONFIG.activationEndpoint + '?' + query.toString();
+    document.body.appendChild(script);
+  });
+}
 
 const templates = {
   '6x9': { label:'6×9', count:25, wCm:6, hCm:9, mode:'grid', cols:5, rows:5 },
@@ -53,14 +100,11 @@ async function checkSavedClientOnServer(client){
 
   try{
     const deviceId = getDeviceId();
-    const url =
-      CONFIG.activationEndpoint +
-      '?action=checkSession' +
-      '&phone=' + encodeURIComponent(client.phone) +
-      '&deviceId=' + encodeURIComponent(deviceId);
-
-    const res = await fetch(url, { cache:'no-store' });
-    const data = await res.json();
+    const data = await apiGet({
+      action: 'checkSession',
+      phone: client.phone,
+      deviceId: deviceId
+    });
 
     if(!data || data.success !== true){
       localStorage.removeItem('mb_client');
@@ -136,9 +180,11 @@ async function activate(){
 
   try{
     const deviceId = getDeviceId();
-    const url = CONFIG.activationEndpoint + '?phone=' + encodeURIComponent(phone) + '&deviceId=' + encodeURIComponent(deviceId);
-    const res = await fetch(url, { cache:'no-store' });
-    const data = await res.json();
+    const data = await apiGet({
+      action: 'activate',
+      phone: phone,
+      deviceId: deviceId
+    });
     if(!data || data.success !== true || data.found !== true) throw new Error(data?.message || 'not-active');
 
     const customer = data.customer || {};
@@ -723,13 +769,24 @@ async function downloadAll(){
 
 async function ensureOrderCreated(){
   if(state.order?.orderId) return state.order;
+
   const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
   if(!CONFIG.activationEndpoint) throw new Error('رابط النظام غير مضبوط.');
-  const params = new URLSearchParams({ action:'createOrder', phone:client.phone || '', customerName:client.name || '', customerType:client.type || '', template:templates[state.template].label, photoCount:String(state.photos.length), sheetCount:String(state.outputs.length) });
-  const res = await fetch(CONFIG.activationEndpoint + '?' + params.toString(), { cache: 'no-store' });
-  const data = await res.json();
+
+  const data = await apiGet({
+    action: 'createOrder',
+    phone: client.phone || '',
+    customerName: client.name || '',
+    customerType: client.type || '',
+    template: templates[state.template].label,
+    photoCount: String(state.photos.length),
+    sheetCount: String(state.outputs.length)
+  });
+
   if(!data || data.success !== true) throw new Error(data?.message || 'تعذر إنشاء الطلب.');
-  state.order = data; return data;
+
+  state.order = data;
+  return data;
 }
 
 

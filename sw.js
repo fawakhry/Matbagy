@@ -1,30 +1,36 @@
-const CACHE_NAME = 'matbagy-v113-cache';
+const CACHE_NAME = 'matbagy-v115-cache';
+
 const ASSETS = [
   './',
-  './index.html?v=114',
-  './styles.css?v=114',
-  './config.js?v=114',
-  './app.js?v=114',
-  './print-export.js?v=114',
-  './manifest.webmanifest?v=114'
+  './index.html?v=115',
+  './styles.css?v=115',
+  './config.js?v=115',
+  './app.js?v=115',
+  './print-export.js?v=115',
+  './manifest.webmanifest?v=115'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => null)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => null))
+  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.map((key) => {
-      if (key !== CACHE_NAME) return caches.delete(key);
-    }))).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      })))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
+
   if (req.method !== 'GET') return;
 
   if (
@@ -40,10 +46,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-      return res;
-    }).catch(() => cached))
+    caches.match(req).then((cached) =>
+      cached || fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        return res;
+      }).catch(() => cached)
+    )
   );
 });
