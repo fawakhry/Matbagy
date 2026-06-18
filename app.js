@@ -2,7 +2,7 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
 
-const FORCE_RELOGIN_VERSION = 'reset-2026-06-06-v115';
+const FORCE_RELOGIN_VERSION = 'quality-300dpi-phys-v20260614';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
@@ -499,7 +499,7 @@ async function generateSheets(){
     return;
   }
 
-  $('status').textContent = 'جاري إنشاء الشيتات عالية الجودة...';
+  $('status').textContent = 'جاري إنشاء الشيتات بجودة طباعة 300DPI...';
   await new Promise(resolve => setTimeout(resolve, 200));
   $('preview').innerHTML = '';
   state.outputs = [];
@@ -536,7 +536,7 @@ async function generateSheets(){
     $('preview').appendChild(box);
   });
 
-  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة HD 300DPI تُجهز فقط عند التحميل أو الإرسال.`;
+  $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة PNG 300DPI تُجهز عند التحميل أو الإرسال.`;
   $('downloadBtn').classList.remove('hidden');
   $('shareBtn').classList.remove('hidden');
 }
@@ -553,10 +553,13 @@ async function buildOutputs(withWatermark){
     let url = '';
 
     if(blob){
+      blob = await addPngDpiMetadata(blob, Number(CONFIG.printDpi || 300));
       url = URL.createObjectURL(blob);
     }else{
       url = canvas.toDataURL('image/png');
       blob = await dataUrlToBlob(url);
+      blob = await addPngDpiMetadata(blob, Number(CONFIG.printDpi || 300));
+      url = URL.createObjectURL(blob);
     }
 
     const suffix = withWatermark ? '_Preview_Watermark' : '_CLEAN_HD_300DPI_Print';
@@ -582,9 +585,134 @@ function dataUrlToBlob(dataUrl){
 
 
 
+/*
+  يضيف pHYs metadata داخل ملف PNG حتى برامج الطباعة تقرأه 300DPI بدل 72DPI.
+  حجم البكسلات هو الأساس، لكن هذه البيانات تمنع برامج كثيرة من فتح الملف بمقاس طباعة غلط.
+*/
+async function addPngDpiMetadata(blob, dpi = 300){
+  try{
+    if(!blob || blob.type !== 'image/png') return blob;
+
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const sig = [137,80,78,71,13,10,26,10];
+
+    for(let i=0; i<sig.length; i++){
+      if(bytes[i] !== sig[i]) return blob;
+    }
+
+    const ppm = Math.round(Number(dpi || 300) / 0.0254);
+    const data = new Uint8Array(9);
+    writeUint32BE(data, 0, ppm);
+    writeUint32BE(data, 4, ppm);
+    data[8] = 1; // meter
+
+    const physChunk = makePngChunk('pHYs', data);
+
+    let offset = 8;
+    let insertAt = -1;
+    let existingStart = -1;
+    let existingEnd = -1;
+
+    while(offset + 8 <= bytes.length){
+      const len = readUint32BE(bytes, offset);
+      const type = String.fromCharCode(bytes[offset+4], bytes[offset+5], bytes[offset+6], bytes[offset+7]);
+      const chunkStart = offset;
+      const chunkEnd = offset + 12 + len;
+
+      if(type === 'IHDR') insertAt = chunkEnd;
+      if(type === 'pHYs'){
+        existingStart = chunkStart;
+        existingEnd = chunkEnd;
+        break;
+      }
+      if(type === 'IDAT' && insertAt > -1) break;
+
+      offset = chunkEnd;
+    }
+
+    let out;
+    if(existingStart >= 0){
+      out = concatUint8(
+        bytes.slice(0, existingStart),
+        physChunk,
+        bytes.slice(existingEnd)
+      );
+    }else if(insertAt >= 0){
+      out = concatUint8(
+        bytes.slice(0, insertAt),
+        physChunk,
+        bytes.slice(insertAt)
+      );
+    }else{
+      return blob;
+    }
+
+    return new Blob([out], { type:'image/png' });
+  }catch(e){
+    console.warn('تعذر إضافة بيانات DPI للـ PNG:', e);
+    return blob;
+  }
+}
+
+function makePngChunk(type, data){
+  const typeBytes = new TextEncoder().encode(type);
+  const out = new Uint8Array(12 + data.length);
+  writeUint32BE(out, 0, data.length);
+  out.set(typeBytes, 4);
+  out.set(data, 8);
+  const crcInput = new Uint8Array(typeBytes.length + data.length);
+  crcInput.set(typeBytes, 0);
+  crcInput.set(data, typeBytes.length);
+  writeUint32BE(out, 8 + data.length, pngCrc32(crcInput));
+  return out;
+}
+
+function readUint32BE(arr, offset){
+  return ((arr[offset] << 24) | (arr[offset+1] << 16) | (arr[offset+2] << 8) | arr[offset+3]) >>> 0;
+}
+
+function writeUint32BE(arr, offset, value){
+  value = Number(value) >>> 0;
+  arr[offset] = (value >>> 24) & 255;
+  arr[offset+1] = (value >>> 16) & 255;
+  arr[offset+2] = (value >>> 8) & 255;
+  arr[offset+3] = value & 255;
+}
+
+function concatUint8(){
+  const arrays = Array.from(arguments);
+  const total = arrays.reduce((sum, a) => sum + a.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  arrays.forEach(a => { out.set(a, pos); pos += a.length; });
+  return out;
+}
+
+let __pngCrcTable = null;
+function pngCrc32(bytes){
+  if(!__pngCrcTable){
+    __pngCrcTable = [];
+    for(let n=0; n<256; n++){
+      let c = n;
+      for(let k=0; k<8; k++){
+        c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      __pngCrcTable[n] = c >>> 0;
+    }
+  }
+
+  let c = 0xffffffff;
+  for(let i=0; i<bytes.length; i++){
+    c = __pngCrcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+
+
 async function drawSheet(photos, tpl, withWatermark=true){
   // v105: جودة طباعة حقيقية. الشيت النهائي يرسم من الصورة الأصلية، وليس من معاينة صغيرة.
-  const dpi = 300;
+  const dpi = Number(CONFIG.printDpi || 300);
   const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
   const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
   const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
@@ -594,7 +722,9 @@ async function drawSheet(photos, tpl, withWatermark=true){
   c.width = W;
   c.height = H;
 
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', { alpha: false });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
@@ -749,7 +879,7 @@ async function downloadAll(){
   }
 
   try{
-    $('status').textContent = 'جاري تجهيز ملفات الطباعة النظيفة HD 300DPI...';
+    $('status').textContent = 'جاري تجهيز ملفات الطباعة النظيفة PNG 300DPI...';
     state.cleanOutputs = await buildOutputs(false);
 
     state.cleanOutputs.forEach(o=>{
