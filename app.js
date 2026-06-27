@@ -2,11 +2,100 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
 
-const FORCE_RELOGIN_VERSION = 'quality-300dpi-phys-v20260614';
+const FORCE_RELOGIN_VERSION = 'sheets-sso-v20260626-p25';
+const MATBAGY_SHEETS_VERSION = 'Matbagy Sheets Full SSO Ready - P25 - 2026-06-26';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
 
+
+
+// ===== Matbagy Sheets Employee SSO =====
+function normalizeArabicName(value){
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[ًٌٍَُِّْـ]/g, '')
+    .replace(/ة/g, 'ه')
+    .replace(/أ|إ|آ/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/[^\u0600-\u06ffa-z0-9]+/g, '');
+}
+
+function allowedEmployeeNames(){
+  const defaults = ['ضياء','ضياء الفواخري','diaa','wael','وائل','gaber','gabr','جابر','rahma','رحمه','revan','ريفان'];
+  const extra = Array.isArray(CONFIG.allowedSsoEmployees) ? CONFIG.allowedSsoEmployees : [];
+  return defaults.concat(extra).map(normalizeArabicName).filter(Boolean);
+}
+
+function isAllowedEmployeeName(value){
+  const name = normalizeArabicName(value);
+  if(!name) return false;
+  return allowedEmployeeNames().includes(name);
+}
+
+function getParamAny(params, names){
+  for(const n of names){
+    const v = params.get(n);
+    if(v) return v;
+  }
+  return '';
+}
+
+function readTrendSsoFromUrl(){
+  const params = new URLSearchParams(window.location.search || '');
+  const hashParams = new URLSearchParams(String(window.location.hash || '').replace(/^#\??/, ''));
+  const get = (names) => getParamAny(params, names) || getParamAny(hashParams, names);
+
+  const from = get(['from','source','app','origin']);
+  const sso = get(['sso','ssoMode','employeeSso','sheetsSso']);
+  const token = get(['token','ssoToken','session','sid']);
+  const username = get(['username','user','name','employee','staff','loginName','displayName']);
+  const role = get(['role','permission','section','dept']);
+
+  const looksLikeTrendOS = ['trendos','matbagy','matbagy-trendos','1','true','yes','employee'].includes(String(from || sso).toLowerCase()) || !!token;
+  if(!looksLikeTrendOS || !isAllowedEmployeeName(username)) return null;
+
+  return {
+    active: true,
+    sso: true,
+    employee: true,
+    source: 'TrendOS',
+    name: username,
+    manager: role || 'employee',
+    phone: 'EMPLOYEE-SSO',
+    type: 'employee',
+    role: role || 'employee',
+    deviceId: getDeviceId(),
+    token: token || '',
+    activatedAt: new Date().toISOString()
+  };
+}
+
+function tryEmployeeSsoLogin(){
+  const client = readTrendSsoFromUrl();
+  if(!client) return null;
+  localStorage.setItem('mb_client', JSON.stringify(client));
+  localStorage.setItem('mb_sheets_sso', '1');
+  localStorage.setItem('mb_sheets_sso_user', client.name || '');
+  return client;
+}
+
+function isStoredSsoEmployee(client){
+  return !!(client && client.sso === true && client.employee === true && isAllowedEmployeeName(client.name));
+}
+
+function injectAdjustmentStyles(){
+  if(document.getElementById('mbAdjustmentRuntimeStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'mbAdjustmentRuntimeStyles';
+  style.textContent = `
+    .sso-badge{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;color:#0f766e;border:1px solid #bbf7d0;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;margin-top:8px}
+    .zoom-controls{display:flex;gap:6px;align-items:center;margin-top:8px}.zoom-controls input{min-width:90px;flex:1}.zoom-btn{padding:6px 10px}.zoom-readout{font-size:12px;color:#64748b;text-align:center;margin-top:4px;font-weight:800}
+    .adjust-canvas{width:100%;height:100%;display:block;background:#fff;border-radius:10px}.fill-btn{background:#ecfdf5!important;color:#0f766e!important;border:1px solid #bbf7d0!important}
+  `;
+  document.head.appendChild(style);
+}
 
 function apiGet(params = {}) {
   return new Promise((resolve, reject) => {
@@ -83,8 +172,11 @@ function forceReloginIfNeeded(){
   const savedVersion = localStorage.getItem('mb_force_relogin_version');
 
   if(savedVersion !== FORCE_RELOGIN_VERSION){
-    // إخراج كل العملاء من النسخ القديمة وإجبارهم على التفعيل من جديد
-    localStorage.removeItem('mb_client');
+    const savedClient = JSON.parse(localStorage.getItem('mb_client') || '{}');
+    // العملاء فقط يتم إخراجهم عند تغيير النسخة، أما موظف TrendOS SSO لا يحتاج تفعيل تليفون.
+    if(!isStoredSsoEmployee(savedClient)){
+      localStorage.removeItem('mb_client');
+    }
     localStorage.setItem('mb_force_relogin_version', FORCE_RELOGIN_VERSION);
   }
 }
@@ -131,11 +223,17 @@ async function init(){
   bindEvents();
   injectAdjustmentStyles();
 
+  const ssoClient = tryEmployeeSsoLogin();
+  if(ssoClient){
+    showApp(ssoClient);
+    return;
+  }
+
   const saved = localStorage.getItem('mb_client');
 
   if(saved){
     const client = JSON.parse(saved);
-    const ok = await checkSavedClientOnServer(client);
+    const ok = isStoredSsoEmployee(client) ? true : await checkSavedClientOnServer(client);
 
     if(ok){
       showApp(client);
@@ -149,7 +247,7 @@ async function init(){
 function bindEvents(){
   $('activateBtn').addEventListener('click', activate);
   $('activationCode').addEventListener('keydown', (e) => { if(e.key === 'Enter') activate(); });
-  $('logoutBtn').addEventListener('click', () => { localStorage.removeItem('mb_client'); location.reload(); });
+  $('logoutBtn').addEventListener('click', () => { localStorage.removeItem('mb_client'); localStorage.removeItem('mb_sheets_sso'); localStorage.removeItem('mb_sheets_sso_user'); location.reload(); });
   $('notifyBtn').addEventListener('click', requestNotifications);
   qsa('.template').forEach(btn => btn.addEventListener('click', () => selectTemplate(btn.dataset.template)));
   $('fileInput').addEventListener('change', handleFiles);
@@ -201,6 +299,18 @@ function showApp(client){
   $('activationView').classList.add('hidden');
   $('appView').classList.remove('hidden');
   $('helloTitle').textContent = `أهلاً ${client.name || 'بك'} 👋`;
+  if(isStoredSsoEmployee(client)){
+    const logoutBtn = $('logoutBtn');
+    if(logoutBtn) logoutBtn.textContent = 'خروج الموظف';
+    const welcome = document.querySelector('.welcome');
+    if(welcome && !document.getElementById('ssoBadge')){
+      const badge = document.createElement('div');
+      badge.id = 'ssoBadge';
+      badge.className = 'sso-badge';
+      badge.textContent = 'دخول موظف من TrendOS بدون تفعيل هاتف';
+      welcome.querySelector('div')?.appendChild(badge);
+    }
+  }
 }
 
 function selectTemplate(id){ state.template = id; state.order = null; qsa('.template').forEach(b=>b.classList.toggle('active', b.dataset.template === id)); }

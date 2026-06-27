@@ -13,3 +13,7 @@ window.MB_CONFIG = {
   outerMarginMm: 2,
   defaultFitMode: "smart"
 };
+
+// Patch 25 - TrendOS employee SSO for Matbagy Sheets.
+window.MB_CONFIG.allowTrendOsEmployeeSso = true;
+window.MB_CONFIG.allowedSsoEmployees = ["ضياء", "وائل", "جابر", "رحمه", "ريفان", "diaa", "wael", "gaber", "rahma", "revan"];
