@@ -14,6 +14,6 @@ window.MB_CONFIG = {
   defaultFitMode: "smart"
 };
 
-// Patch 25 - TrendOS employee SSO for Matbagy Sheets.
+// Patch 27 - TrendOS employee SSO for Matbagy Sheets: Diaa/Wael only + 4x6 template on 29.7x45 sheet.
 window.MB_CONFIG.allowTrendOsEmployeeSso = true;
-window.MB_CONFIG.allowedSsoEmployees = ["ضياء", "وائل", "جابر", "رحمه", "ريفان", "diaa", "wael", "gaber", "rahma", "revan"];
+window.MB_CONFIG.allowedSsoEmployees = ["ضياء", "ضياء الفواخري", "وائل", "diaa", "wael"];

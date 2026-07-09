@@ -2,8 +2,8 @@ const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
 let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
 
-const FORCE_RELOGIN_VERSION = 'sheets-sso-v20260626-p25';
-const MATBAGY_SHEETS_VERSION = 'Matbagy Sheets Full SSO Ready - P25 - 2026-06-26';
+const FORCE_RELOGIN_VERSION = 'sheets-sso-v20260709-p27-diaa-wael-4x6';
+const MATBAGY_SHEETS_VERSION = 'Matbagy Sheets Full SSO Ready - P27 - Diaa/Wael Only + 4x6 - 2026-07-09';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
@@ -23,7 +23,7 @@ function normalizeArabicName(value){
 }
 
 function allowedEmployeeNames(){
-  const defaults = ['ضياء','ضياء الفواخري','diaa','wael','وائل','gaber','gabr','جابر','rahma','رحمه','revan','ريفان'];
+  const defaults = ['ضياء','ضياء الفواخري','diaa','wael','وائل'];
   const extra = Array.isArray(CONFIG.allowedSsoEmployees) ? CONFIG.allowedSsoEmployees : [];
   return defaults.concat(extra).map(normalizeArabicName).filter(Boolean);
 }
@@ -146,6 +146,8 @@ function apiGet(params = {}) {
 const templates = {
   '6x9': { label:'6×9', count:25, wCm:6, hCm:9, mode:'grid', cols:5, rows:5 },
   '10x15': { label:'10×15', count:9, wCm:10, hCm:15, mode:'grid', cols:3, rows:3 },
+  // 4×6 على شيت مطبعجي القديم 29.7×45 سم: 7 أعمدة × 7 صفوف = 49 صورة.
+  '4x6': { label:'4×6', count:49, wCm:4, hCm:6, mode:'grid', cols:7, rows:7 },
   '7x10': { label:'7×10', count:19, wCm:7, hCm:10, mode:'mixed' }
 };
 

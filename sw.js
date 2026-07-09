@@ -1,13 +1,13 @@
-const CACHE_NAME = 'matbagy-v126-sso-cache';
+const CACHE_NAME = 'matbagy-v128-diaa-wael-4x6-cache';
 
 const ASSETS = [
   './',
-  './index.html?v=126',
-  './styles.css?v=126',
-  './config.js?v=126',
-  './app.js?v=126',
-  './print-export.js?v=126',
-  './manifest.webmanifest?v=126'
+  './index.html?v=128',
+  './styles.css?v=128',
+  './config.js?v=128',
+  './app.js?v=128',
+  './print-export.js?v=128',
+  './manifest.webmanifest?v=128'
 ];
 
 self.addEventListener('install', (event) => {
