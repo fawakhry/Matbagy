@@ -1,13 +1,13 @@
-const CACHE_NAME = 'matbagy-v128-diaa-wael-4x6-cache';
+const CACHE_NAME = 'matbagy-v133-laser-safe-corner-marks-cache';
 
 const ASSETS = [
   './',
-  './index.html?v=128',
-  './styles.css?v=128',
-  './config.js?v=128',
-  './app.js?v=128',
-  './print-export.js?v=128',
-  './manifest.webmanifest?v=128'
+  './index.html?v=133',
+  './styles.css?v=133',
+  './config.js?v=133',
+  './app.js?v=133',
+  './print-export.js?v=133',
+  './manifest.webmanifest?v=133'
 ];
 
 self.addEventListener('install', (event) => {

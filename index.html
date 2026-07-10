@@ -3,19 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f766e" />
-  <title>مطبعجي شيتات</title>
-  <link rel="manifest" href="manifest.webmanifest?v=128" />
-  <link rel="stylesheet" href="styles.css?v=128" />
+  <meta name="theme-color" content="#005BFF" />
+  <title>مطبعجي بنها | ترند مول</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="manifest.webmanifest?v=133" />
+  <link rel="stylesheet" href="styles.css?v=133" />
 </head>
 <body>
-  <div class="watermark">مطبعجي بنها</div>
+  <div class="watermark">Trend Mall</div>
 
   <main class="app-shell">
-    <header class="topbar">
-      <div>
-        <div class="brand">مطبعجي شيتات</div>
-        <div class="subbrand">تجهيز شيتات الطباعة HD للعملاء - SSO Ready V128 - ضياء/وائل فقط + 4×6</div>
+    <header class="topbar tm-header">
+      <div class="tm-brand-lockup">
+        <div class="tm-logo-mark">T</div>
+        <div>
+          <div class="brand">Trend Mall OS</div>
+          <div class="subbrand">فكرتك جاهزة - مطبعجي بنها للطباعة والهدايا</div>
+        </div>
       </div>
       <button id="notifyBtn" class="ghost">الإشعارات</button>
     </header>
@@ -49,17 +55,16 @@
         <div>
           <h2 id="helloTitle">أهلاً بك</h2>
           <p>
-            اختار المقاس وارفع الصور، والبرنامج يجهز شيتات الطباعة تلقائيًا
-            مع الحفاظ على الملامح وملء الخانات بأفضل شكل ممكن.
+            اختار المقاس وارفع الصور، وسيب تجهيز الشيت والرص والتدوير علينا.
           </p>
         </div>
         <button id="logoutBtn" class="danger ghost">إلغاء التفعيل</button>
       </section>
 
       <section class="card">
-        <h2>1) اختار القالب</h2>
+        <h2>1) اختار المقاس</h2>
 
-        <div class="templates">
+        <div id="templates" class="templates">
           <button class="template active" data-template="6x9">
             <b>6×9</b>
             
@@ -87,18 +92,18 @@
 
         <input id="fileInput" type="file" accept="image/*" multiple />
 
-        <div class="hint quality-note">
-          يرجى إرسال الصور كملفات أصلية وليس كصور واتساب مضغوطة للحصول على أفضل جودة طباعة.
+        <div id="qualitySummary" class="hint quality-note">
+          الصور الأصلية تعطي أفضل طباعة. البرنامج سيفحص الجودة والتدوير تلقائيًا.
         </div>
 
         <div class="row">
+          <button id="repeatOneBtn" class="ghost" type="button">كرر الصورة على الشيت كله</button>
           <button id="clearBtn" class="ghost">مسح الصور</button>
-          <button id="rotateAllBtn" class="ghost">تدوير الصور المحتاجة</button>
+          <button id="rotateAllBtn" class="ghost employee-only">تدوير يدوي</button>
         </div>
 
         <div class="smart-mode-note">
-          الوضع الذكي مفعل تلقائيًا: يحافظ على الوجوه والملامح قدر الإمكان
-          ويملأ الخانة بأفضل توزيع بدون اختيارات معقدة.
+          الوضع الذكي مفعل تلقائيًا: تدوير، فحص جودة، وضبط الصورة داخل الفريم بأبسط شكل.
         </div>
 
         <div id="photoList" class="photo-list"></div>
@@ -107,7 +112,13 @@
       <section class="card">
         <h2>3) إنشاء الشيتات</h2>
 
-        <button id="generateBtn" class="primary">إنشاء الشيتات</button>
+        <div class="quick-cut-options" aria-label="اختيارات القص السريعة">
+          <button class="cut-chip active" data-cut-mode="manual">قص عادي</button>
+          <button class="cut-chip" data-cut-mode="zero">0 فواصل</button>
+          <button class="cut-chip" data-cut-mode="laser">ليزر</button>
+        </div>
+
+        <button id="generateBtn" class="primary big-action">جهز الشيت</button>
 
         <p id="status" class="msg"></p>
 
@@ -119,6 +130,7 @@
 
         <div class="row">
           <button id="downloadBtn" class="primary hidden">تحميل ملفات الطباعة HD</button>
+          <button id="laserCutPdfBtn" class="ghost hidden">تنزيل PDF قص ليزر</button>
           <button id="shareBtn" class="primary hidden">تجهيز الملف وفتح واتساب</button>
         </div>
 
@@ -127,20 +139,103 @@
           حمّل ملفات الطباعة HD 300DPI ثم أرسل ملف ZIP كـ Document / مستند.
         </div>
       </section>
+
+      <section id="employeePanel" class="card employee-panel hidden">
+        <h2>أدوات متقدمة</h2>
+
+        <details>
+          <summary>مقاس أو اسطمبة جديدة</summary>
+          <div class="employee-grid">
+            <label>اسم المقاس
+              <input id="tplName" type="text" placeholder="مثال: ربع كوشيه" />
+            </label>
+            <label>عرض الصورة سم
+              <input id="tplPhotoW" type="number" step="0.1" placeholder="6" />
+            </label>
+            <label>طول الصورة سم
+              <input id="tplPhotoH" type="number" step="0.1" placeholder="9" />
+            </label>
+            <label>عرض الشيت سم
+              <input id="tplSheetW" type="number" step="0.1" value="29.7" />
+            </label>
+            <label>طول الشيت سم
+              <input id="tplSheetH" type="number" step="0.1" value="45" />
+            </label>
+            <label>الفاصل مم
+              <input id="tplGap" type="number" step="0.1" value="1" />
+            </label>
+          </div>
+          <div id="tplPreview" class="hint">اكتب المقاسات وسيتم حساب أفضل رص.</div>
+          <div class="row">
+            <button id="calcTplBtn" class="ghost" type="button">احسب الرص</button>
+            <button id="saveTplBtn" class="primary" type="button">حفظ الاسطمبة</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>حاسبة مطبعجي</summary>
+          <div class="employee-grid">
+            <label>المنتج
+              <select id="calcProduct"></select>
+            </label>
+            <label>عرض القطعة سم
+              <input id="calcW" type="number" step="0.1" placeholder="6" />
+            </label>
+            <label>طول القطعة سم
+              <input id="calcH" type="number" step="0.1" placeholder="9" />
+            </label>
+            <label>عدد القطع
+              <input id="calcQty" type="number" step="1" value="100" />
+            </label>
+            <label>طريقة القص
+              <select id="calcCut">
+                <option value="manual">قص عادي</option>
+                <option value="zero">0 فواصل</option>
+                <option value="laser">ليزر</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <button id="runCalcBtn" class="primary" type="button">احسب</button>
+            <button id="useCalcAsTemplateBtn" class="ghost" type="button">استخدمه كمقاس</button>
+          </div>
+          <div id="calcResult" class="hint">الحاسبة تراعي الهوامش والفواصل وطريقة القص.</div>
+        </details>
+
+        <details>
+          <summary>حواف وفواصل</summary>
+          <div class="employee-grid">
+            <label>الاستروك
+              <select id="strokeMode">
+                <option value="none">بدون</option>
+                <option value="black">أسود</option>
+                <option value="white">أبيض</option>
+                <option value="custom">لون مخصص</option>
+              </select>
+            </label>
+            <label>لون مخصص
+              <input id="strokeColor" type="color" value="#111111" />
+            </label>
+            <label>سُمك الاستروك مم
+              <input id="strokeWidthMm" type="number" step="0.1" value="0.4" />
+            </label>
+          </div>
+        </details>
+      </section>
     </section>
   </main>
 
-  <script src="config.js?v=128"></script>
+  <script src="config.js?v=133"></script>
 
   <!-- مكتبات تصدير ملف الطباعة بجودة عالية -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <!-- ملف تصدير الشيتات PDF / ZIP -->
-  <script src="print-export.js?v=128"></script>
+  <script src="print-export.js?v=133"></script>
 
   <!-- ملف تشغيل التطبيق الأساسي -->
-  <script src="app.js?v=128"></script>
+  <script src="app.js?v=133"></script>
 
   <script>
     if ('serviceWorker' in navigator) {

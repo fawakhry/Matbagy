@@ -1,12 +1,43 @@
 const CONFIG = window.MB_CONFIG || {};
 const CM_TO_IN = 1 / 2.54;
-let state = { template: '6x9', photos: [], outputs: [], cleanOutputs: [], order: null, isSending:false, reviewOpen:false };
+let state = {
+  template: '6x9',
+  photos: [],
+  outputs: [],
+  cleanOutputs: [],
+  order: null,
+  isSending:false,
+  reviewOpen:false,
+  client: null,
+  isEmployee:false,
+  repeatSingle:false,
+  cutMode:'manual',
+  strokeMode: CONFIG.defaultStroke?.mode || 'none',
+  strokeColor: CONFIG.defaultStroke?.color || '#111111',
+  strokeWidthMm: Number(CONFIG.defaultStroke?.widthMm || 0.4),
+  lastCalc: null
+};
 
 const FORCE_RELOGIN_VERSION = 'sheets-sso-v20260709-p27-diaa-wael-4x6';
-const MATBAGY_SHEETS_VERSION = 'Matbagy Sheets Full SSO Ready - P27 - Diaa/Wael Only + 4x6 - 2026-07-09';
+const MATBAGY_SHEETS_VERSION = 'Trend Mall / Matbagy Banha Smart Sheets - V129 - 2026-07-09';
 
 const $ = (id) => document.getElementById(id);
 const qsa = (sel) => [...document.querySelectorAll(sel)];
+
+const STORAGE_TEMPLATES_KEY = 'mb_custom_templates_v1';
+
+function readJsonStorage(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  }catch(e){
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
+}
 
 
 
@@ -85,6 +116,12 @@ function isStoredSsoEmployee(client){
   return !!(client && client.sso === true && client.employee === true && isAllowedEmployeeName(client.name));
 }
 
+function canUseAdvancedTools(client){
+  if(isStoredSsoEmployee(client)) return true;
+  const type = normalizeArabicName(client?.type || client?.role || '');
+  return ['مطبعه','مطابع','جمله','عميلجمله','wholesale','printer','printshop'].some(v => type.includes(v));
+}
+
 function injectAdjustmentStyles(){
   if(document.getElementById('mbAdjustmentRuntimeStyles')) return;
   const style = document.createElement('style');
@@ -143,13 +180,45 @@ function apiGet(params = {}) {
   });
 }
 
-const templates = {
+let templates = {
   '6x9': { label:'6×9', count:25, wCm:6, hCm:9, mode:'grid', cols:5, rows:5 },
   '10x15': { label:'10×15', count:9, wCm:10, hCm:15, mode:'grid', cols:3, rows:3 },
   // 4×6 على شيت مطبعجي القديم 29.7×45 سم: 7 أعمدة × 7 صفوف = 49 صورة.
   '4x6': { label:'4×6', count:49, wCm:4, hCm:6, mode:'grid', cols:7, rows:7 },
   '7x10': { label:'7×10', count:19, wCm:7, hCm:10, mode:'mixed' }
 };
+
+function loadTemplates(){
+  const saved = readJsonStorage(STORAGE_TEMPLATES_KEY, []);
+  saved.forEach(tpl=>{
+    if(tpl && tpl.id && tpl.label && tpl.wCm && tpl.hCm){
+      templates[tpl.id] = tpl;
+    }
+  });
+}
+
+function saveCustomTemplate(tpl){
+  const saved = readJsonStorage(STORAGE_TEMPLATES_KEY, []);
+  const next = saved.filter(t => t.id !== tpl.id).concat(tpl);
+  writeJsonStorage(STORAGE_TEMPLATES_KEY, next);
+  templates[tpl.id] = tpl;
+  renderTemplates();
+}
+
+function renderTemplates(){
+  const wrap = $('templates') || document.querySelector('.templates');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  Object.keys(templates).forEach(id=>{
+    const tpl = templates[id];
+    const btn = document.createElement('button');
+    btn.className = 'template' + (state.template === id ? ' active' : '');
+    btn.dataset.template = id;
+    btn.innerHTML = `<b>${tpl.label}</b><span>${tpl.count || ''} على الشيت</span>`;
+    btn.addEventListener('click', () => selectTemplate(id));
+    wrap.appendChild(btn);
+  });
+}
 
 init();
 
@@ -217,12 +286,17 @@ async function checkSavedClientOnServer(client){
 
 async function init(){
   forceReloginIfNeeded();
+  loadTemplates();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
 
+  renderTemplates();
   bindEvents();
+  bindEmployeeTools();
+  syncCutControls();
+  fillProductOptions();
   injectAdjustmentStyles();
 
   const ssoClient = tryEmployeeSsoLogin();
@@ -252,13 +326,16 @@ function bindEvents(){
   $('logoutBtn').addEventListener('click', () => { localStorage.removeItem('mb_client'); localStorage.removeItem('mb_sheets_sso'); localStorage.removeItem('mb_sheets_sso_user'); location.reload(); });
   $('notifyBtn').addEventListener('click', requestNotifications);
   qsa('.template').forEach(btn => btn.addEventListener('click', () => selectTemplate(btn.dataset.template)));
+  qsa('.cut-chip').forEach(btn => btn.addEventListener('click', () => selectCutMode(btn.dataset.cutMode)));
   $('fileInput').addEventListener('change', handleFiles);
+  $('repeatOneBtn')?.addEventListener('click', toggleRepeatSingle);
   $('clearBtn').addEventListener('click', clearPhotos);
   $('rotateAllBtn').addEventListener('click', autoRotateAll);
   $('generateBtn').addEventListener('click', generateSheets);
 
   const downloadBtn = $('downloadBtn');
   const shareBtn = $('shareBtn');
+  const laserCutPdfBtn = $('laserCutPdfBtn');
 
   downloadBtn.onclick = async (e) => {
     e.preventDefault();
@@ -269,6 +346,45 @@ function bindEvents(){
     e.preventDefault();
     await shareWork();
   };
+
+  if(laserCutPdfBtn){
+    laserCutPdfBtn.onclick = async (e) => {
+      e.preventDefault();
+      await downloadLaserCutPdf();
+    };
+  }
+}
+
+function bindEmployeeTools(){
+  const calcTplBtn = $('calcTplBtn');
+  const saveTplBtn = $('saveTplBtn');
+  const runCalcBtn = $('runCalcBtn');
+  const useCalcAsTemplateBtn = $('useCalcAsTemplateBtn');
+  const strokeMode = $('strokeMode');
+  const strokeColor = $('strokeColor');
+  const strokeWidthMm = $('strokeWidthMm');
+
+  if(calcTplBtn) calcTplBtn.addEventListener('click', previewTemplateFromInputs);
+  if(saveTplBtn) saveTplBtn.addEventListener('click', saveTemplateFromInputs);
+  if(runCalcBtn) runCalcBtn.addEventListener('click', runMatbagyCalculator);
+  if(useCalcAsTemplateBtn) useCalcAsTemplateBtn.addEventListener('click', useCalcAsTemplate);
+
+  [strokeMode, strokeColor, strokeWidthMm].forEach(el=>{
+    if(!el) return;
+    el.addEventListener('change', ()=>{
+      state.strokeMode = strokeMode?.value || 'none';
+      state.strokeColor = strokeColor?.value || '#111111';
+      state.strokeWidthMm = Number(strokeWidthMm?.value || 0.4);
+      invalidateCurrentSheets('تم تغيير الاستروك. اضغط جهز الشيت مرة أخرى.');
+    });
+  });
+}
+
+function fillProductOptions(){
+  const select = $('calcProduct');
+  if(!select) return;
+  const products = CONFIG.priceProducts || [];
+  select.innerHTML = products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
 }
 
 async function activate(){
@@ -298,9 +414,14 @@ async function activate(){
 }
 
 function showApp(client){
+  state.client = client || {};
+  state.isEmployee = canUseAdvancedTools(client);
   $('activationView').classList.add('hidden');
   $('appView').classList.remove('hidden');
   $('helloTitle').textContent = `أهلاً ${client.name || 'بك'} 👋`;
+  document.body.classList.toggle('employee-mode', state.isEmployee);
+  const panel = $('employeePanel');
+  if(panel) panel.classList.toggle('hidden', !state.isEmployee);
   if(isStoredSsoEmployee(client)){
     const logoutBtn = $('logoutBtn');
     if(logoutBtn) logoutBtn.textContent = 'خروج الموظف';
@@ -315,7 +436,88 @@ function showApp(client){
   }
 }
 
-function selectTemplate(id){ state.template = id; state.order = null; qsa('.template').forEach(b=>b.classList.toggle('active', b.dataset.template === id)); }
+function selectTemplate(id){
+  state.template = id;
+  state.order = null;
+  qsa('.template').forEach(b=>b.classList.toggle('active', b.dataset.template === id));
+  refreshPhotosForTemplate();
+  renderPhotoList();
+}
+
+function refreshPhotosForTemplate(){
+  const tpl = templates[state.template] || templates['6x9'];
+  state.photos.forEach(p=>{
+    const img = p.img;
+    if(!img) return;
+    if(p.autoRotated){
+      p.rotation = shouldRotate(img, tpl) ? 90 : 0;
+      p.autoRotated = p.rotation !== 0;
+    }
+    p.quality = getPhotoQuality(img, tpl, p.rotation);
+  });
+  updateQualitySummary();
+}
+
+function selectCutMode(mode){
+  state.cutMode = mode || 'manual';
+  if(!state.isEmployee){
+    if(state.cutMode === 'zero'){
+      state.strokeMode = 'black';
+      state.strokeWidthMm = 0.35;
+    }else{
+      state.strokeMode = 'none';
+    }
+  }
+  syncCutControls();
+  invalidateCurrentSheets('تم تغيير طريقة القص. اضغط جهز الشيت مرة أخرى.');
+}
+
+function syncCutControls(){
+  qsa('.cut-chip').forEach(btn=>btn.classList.toggle('active', btn.dataset.cutMode === state.cutMode));
+  updateLaserCutButton();
+}
+
+function toggleRepeatSingle(){
+  if(state.photos.length !== 1){
+    state.repeatSingle = false;
+    updateRepeatButton();
+    $('status').textContent = 'ارفع صورة واحدة فقط لتكرارها على الشيت كله.';
+    return;
+  }
+  state.repeatSingle = !state.repeatSingle;
+  updateRepeatButton();
+  invalidateCurrentSheets(state.repeatSingle ? 'تم تفعيل تكرار الصورة. اضغط جهز الشيت.' : 'تم إيقاف التكرار. اضغط جهز الشيت.');
+}
+
+function updateRepeatButton(){
+  const btn = $('repeatOneBtn');
+  if(!btn) return;
+  btn.disabled = state.photos.length !== 1;
+  btn.classList.toggle('active', state.repeatSingle && state.photos.length === 1);
+  btn.textContent = state.repeatSingle && state.photos.length === 1 ? 'تكرار الصورة مفعل' : 'كرر الصورة على الشيت كله';
+}
+
+function updateLaserCutButton(){
+  const btn = $('laserCutPdfBtn');
+  if(!btn) return;
+  const show = state.cutMode === 'laser' && state.outputs.length > 0;
+  btn.classList.toggle('hidden', !show);
+}
+
+function invalidateCurrentSheets(message){
+  state.order = null;
+  state.outputs = [];
+  state.cleanOutputs = [];
+  const preview = $('preview');
+  if(preview) preview.innerHTML = '';
+  const downloadBtn = $('downloadBtn');
+  const shareBtn = $('shareBtn');
+  const laserCutPdfBtn = $('laserCutPdfBtn');
+  if(downloadBtn) downloadBtn.classList.add('hidden');
+  if(shareBtn) shareBtn.classList.add('hidden');
+  if(laserCutPdfBtn) laserCutPdfBtn.classList.add('hidden');
+  if(message && $('status')) $('status').textContent = message;
+}
 
 function getTemplateAspectRatio(){
   const tpl = templates[state.template] || templates['6x9'];
@@ -339,26 +541,96 @@ function ensurePhotoDefaults(photo){
   photo.previewH = size.h;
 }
 
+function getPhotoQuality(img, tpl, rotation=0){
+  const dpi = Number(CONFIG.printDpi || CONFIG.dpi || 300);
+  const r = ((Number(rotation || 0) % 360) + 360) % 360;
+  const rotated90 = r === 90 || r === 270;
+  const iw = rotated90 ? (img.naturalHeight || img.height) : (img.naturalWidth || img.width);
+  const ih = rotated90 ? (img.naturalWidth || img.width) : (img.naturalHeight || img.height);
+  const needW = Math.round((tpl.wCm || 6) * CM_TO_IN * dpi);
+  const needH = Math.round((tpl.hCm || 9) * CM_TO_IN * dpi);
+  const ratio = Math.min(iw / needW, ih / needH);
+  if(ratio >= 0.9) return { level:'ok', text:'جودة ممتازة', ratio };
+  if(ratio >= 0.65) return { level:'warn', text:'جودة مقبولة', ratio };
+  return { level:'bad', text:'جودة ضعيفة', ratio };
+}
+
+async function detectFacesSafe(img){
+  if(!('FaceDetector' in window)) return [];
+  try{
+    const detector = new FaceDetector({ fastMode:true, maxDetectedFaces:10 });
+    const faces = await detector.detect(img);
+    return Array.isArray(faces) ? faces.map(face=>face.boundingBox).filter(Boolean) : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function updateQualitySummary(){
+  const box = $('qualitySummary');
+  if(!box) return;
+  const total = state.photos.length;
+  if(!total){
+    box.textContent = 'الصور الأصلية تعطي أفضل طباعة. البرنامج سيفحص الجودة والتدوير تلقائيًا.';
+    return;
+  }
+  const weak = state.photos.filter(p=>p.quality?.level === 'bad').length;
+  const rotated = state.photos.filter(p=>p.autoRotated).length;
+  const faces = state.photos.filter(p=>p.hasFaces).length;
+  const parts = [`تم فحص ${total} صورة`];
+  if(rotated) parts.push(`تدوير ${rotated} تلقائيًا`);
+  if(faces) parts.push(`كشف وجوه في ${faces}`);
+  if(weak) parts.push(`${weak} جودة ضعيفة`);
+  box.textContent = parts.join(' - ');
+  box.classList.toggle('quality-warning', weak > 0);
+}
+
 
 async function handleFiles(e){
   const files = [...e.target.files];
   state.order = null;
+  const status = $('status');
+  if(status) status.textContent = 'جاري فحص الصور وضبطها تلقائيًا...';
   for(const file of files){
     if(!file.type.startsWith('image/')) continue;
     const url = URL.createObjectURL(file);
     const img = await loadImage(url);
-    const rotation = 0;
-    state.photos.push({ file, url, name:file.name, rotation, offsetX:0, offsetY:0 });
+    const tpl = templates[state.template] || templates['6x9'];
+    const autoRotate = shouldRotate(img, tpl) ? 90 : 0;
+    const quality = getPhotoQuality(img, tpl, autoRotate);
+    const faces = await detectFacesSafe(img).catch(()=>[]);
+    state.photos.push({
+      file,
+      url,
+      name:file.name,
+      img,
+      rotation:autoRotate,
+      autoRotated:autoRotate !== 0,
+      offsetX:0,
+      offsetY:0,
+      zoom:1,
+      quality,
+      faces,
+      hasFaces: faces.length > 0
+    });
   }
+  updateQualitySummary();
+  if(state.photos.length !== 1) state.repeatSingle = false;
+  updateRepeatButton();
+  invalidateCurrentSheets('');
   renderPhotoList();
+  if(status) status.textContent = state.photos.length ? 'تم فحص الصور. اضغط جهز الشيت.' : '';
 }
 
 function clearPhotos(){
   state.photos.forEach(p=>URL.revokeObjectURL(p.url));
   [...state.outputs, ...state.cleanOutputs].forEach(o=>URL.revokeObjectURL(o.url));
   state.photos = []; state.outputs = []; state.cleanOutputs = []; state.order = null;
+  state.repeatSingle = false;
   $('preview').innerHTML = ''; $('fileInput').value = '';
   $('downloadBtn').classList.add('hidden'); $('shareBtn').classList.add('hidden');
+  $('laserCutPdfBtn')?.classList.add('hidden');
+  updateRepeatButton();
   renderPhotoList();
 }
 
@@ -372,11 +644,18 @@ function renderPhotoList(){
     const size = getPreviewFrameSize();
 
     const card = document.createElement('div');
-    card.className = 'photo-card adjustable-card';
+    card.className = 'photo-card adjustable-card' + (p.quality?.level === 'bad' ? ' needs-review' : '');
+    const meta = [
+      p.quality?.text || '',
+      p.autoRotated ? 'تدوير تلقائي' : '',
+      p.hasFaces ? 'وجه محفوظ' : ''
+    ].filter(Boolean).join(' - ');
     card.innerHTML = `
       <div class="adjust-box" data-index="${index}" style="width:${size.w}px;height:${size.h}px;">
         <canvas class="adjust-canvas" width="${size.w}" height="${size.h}"></canvas>
       </div>
+
+      <div class="photo-meta ${p.quality?.level === 'bad' ? 'photo-warning' : 'photo-ok'}">${meta || 'جاهزة'}</div>
 
       <div class="zoom-controls">
         <button type="button" class="zoom-btn zoom-in">+</button>
@@ -434,13 +713,7 @@ function renderPhotoList(){
     }
 
     function invalidateSheets(){
-      state.order = null;
-      state.outputs = [];
-      state.cleanOutputs = [];
-      $('preview').innerHTML = '';
-      $('downloadBtn').classList.add('hidden');
-      $('shareBtn').classList.add('hidden');
-      $('status').textContent = 'تم تعديل الصورة. اضغط إنشاء الشيتات مرة أخرى.';
+      invalidateCurrentSheets('تم تعديل الصورة. اضغط جهز الشيت مرة أخرى.');
     }
 
     Promise.resolve(p.img || loadImage(p.url)).then((img)=>{
@@ -599,8 +872,16 @@ function getPointerPoint(ev){
 
 async function autoRotateAll(){
   const tpl = templates[state.template];
-  for(const p of state.photos){ const img = await loadImage(p.url); p.rotation = shouldRotate(img, tpl) ? 90 : 0; }
-  renderPhotoList(); $('status').textContent = 'تم تدوير الصور حسب القالب المختار.';
+  for(const p of state.photos){
+    const img = p.img || await loadImage(p.url);
+    p.img = img;
+    p.rotation = shouldRotate(img, tpl) ? 90 : 0;
+    p.autoRotated = p.rotation !== 0;
+    p.quality = getPhotoQuality(img, tpl, p.rotation);
+  }
+  updateQualitySummary();
+  invalidateCurrentSheets('تم تدوير الصور حسب المقاس المختار.');
+  renderPhotoList();
 }
 
 function shouldRotate(img, tpl){ const imgPortrait = img.naturalHeight >= img.naturalWidth; const slotPortrait = tpl.hCm >= tpl.wCm; return imgPortrait !== slotPortrait; }
@@ -637,6 +918,7 @@ async function generateSheets(){
     vctx.imageSmoothingEnabled = true;
     vctx.imageSmoothingQuality = 'high';
     vctx.drawImage(o.canvas, 0, 0, viewCanvas.width, viewCanvas.height);
+    viewCanvas.addEventListener('click', () => openFullPreview(o.url));
 
     const link = document.createElement('a');
     link.download = o.name;
@@ -651,11 +933,83 @@ async function generateSheets(){
   $('status').textContent = `تم إنشاء ${state.outputs.length} شيت معاينة. النسخة النظيفة PNG 300DPI تُجهز عند التحميل أو الإرسال.`;
   $('downloadBtn').classList.remove('hidden');
   $('shareBtn').classList.remove('hidden');
+  updateLaserCutButton();
+}
+
+function openFullPreview(url){
+  const backdrop = document.createElement('div');
+  backdrop.className = 'full-preview';
+  backdrop.innerHTML = `
+    <button type="button" class="full-close">إغلاق</button>
+    <img src="${url}" alt="معاينة الشيت">
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.querySelector('.full-close').onclick = () => backdrop.remove();
+  backdrop.addEventListener('click', (ev)=>{ if(ev.target === backdrop) backdrop.remove(); });
+}
+
+async function downloadLaserCutPdf(){
+  if(state.cutMode !== 'laser'){
+    $('status').textContent = 'اختار وضع ليزر أولا ثم جهز الشيت.';
+    return;
+  }
+
+  if(state.photos.length === 0){
+    $('status').textContent = 'ارفع الصور أولا.';
+    return;
+  }
+
+  const tpl = templates[state.template];
+  const groups = getOutputPhotoGroups(tpl);
+  if(!groups.length){
+    $('status').textContent = 'لا توجد شيتات جاهزة لملف الليزر.';
+    return;
+  }
+
+  try{
+    $('status').textContent = 'جاري تجهيز PDF قص الليزر لكوريل...';
+    const canvases = groups.map(group => drawLaserCutSheet(group, tpl));
+    const widthMm = (tpl.sheetWidthCm || CONFIG.sheetWidthCm || 29.7) * 10;
+    const heightMm = (tpl.sheetHeightCm || CONFIG.sheetHeightCm || 45) * 10;
+    const fileName = `TrendMall_MatbagyBanha_LaserCut_${cleanFilePart(tpl.label)}_${getTimestampForFile()}.pdf`;
+
+    if(window.jspdf && window.jspdf.jsPDF){
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: heightMm >= widthMm ? 'portrait' : 'landscape',
+        unit: 'mm',
+        format: [widthMm, heightMm],
+        compress: false
+      });
+
+      canvases.forEach((canvas, index)=>{
+        if(index > 0) pdf.addPage([widthMm, heightMm], heightMm >= widthMm ? 'portrait' : 'landscape');
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, widthMm, heightMm, undefined, 'NONE');
+      });
+
+      pdf.save(fileName);
+      $('status').textContent = 'تم تنزيل PDF قص الليزر. افتحه في كوريل واعمل Trace.';
+      return;
+    }
+
+    canvases.forEach((canvas, index)=>{
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = fileName.replace('.pdf', `_Sheet_${String(index+1).padStart(2,'0')}.png`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+    $('status').textContent = 'مكتبة PDF غير متاحة، تم تنزيل PNG أبيض/أسود بديل.';
+  }catch(e){
+    console.error(e);
+    $('status').textContent = e.message || 'تعذر تجهيز ملف قص الليزر.';
+  }
 }
 
 async function buildOutputs(withWatermark){
   const tpl = templates[state.template];
-  const chunks = chunk(state.photos, tpl.count);
+  const chunks = getOutputPhotoGroups(tpl);
   const outputs = [];
 
   for(let i=0; i<chunks.length; i++){
@@ -677,12 +1031,19 @@ async function buildOutputs(withWatermark){
     const suffix = withWatermark ? '_Preview_Watermark' : '_CLEAN_HD_300DPI_Print';
     const stamp = getTimestampForFile();
     const orderPart = state.order?.orderId ? cleanFilePart(state.order.orderId) + '_' : '';
-    const name = `${orderPart}Matbagy_Banha_${cleanFilePart(tpl.label)}_Sheet_${String(i+1).padStart(3,'0')}${suffix}_${stamp}.png`;
+    const name = `${orderPart}TrendMall_MatbagyBanha_${cleanFilePart(tpl.label)}_Sheet_${String(i+1).padStart(3,'0')}${suffix}_${stamp}.png`;
 
     outputs.push({ blob, url, name, canvas });
   }
 
   return outputs;
+}
+
+function getOutputPhotoGroups(tpl){
+  if(state.repeatSingle && state.photos.length === 1){
+    return [Array.from({ length: tpl.count }, () => state.photos[0])];
+  }
+  return chunk(state.photos, tpl.count);
 }
 
 function dataUrlToBlob(dataUrl){
@@ -824,11 +1185,12 @@ function pngCrc32(bytes){
 
 async function drawSheet(photos, tpl, withWatermark=true){
   // v105: جودة طباعة حقيقية. الشيت النهائي يرسم من الصورة الأصلية، وليس من معاينة صغيرة.
-  const dpi = Number(CONFIG.printDpi || 300);
-  const W = Math.round((CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
-  const H = Math.round((CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
-  const gap = Math.round(((CONFIG.gapMm || 1) / 10) * CM_TO_IN * dpi);
-  const margin = Math.round(((CONFIG.outerMarginMm || 0) / 10) * CM_TO_IN * dpi);
+  const dpi = Number(CONFIG.printDpi || CONFIG.dpi || 300);
+  const W = Math.round((tpl.sheetWidthCm || CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
+  const H = Math.round((tpl.sheetHeightCm || CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
+  const gap = Math.round((getEffectiveGapMm(tpl) / 10) * CM_TO_IN * dpi);
+  const margin = Math.round(((tpl.outerMarginMm ?? CONFIG.outerMarginMm ?? 0) / 10) * CM_TO_IN * dpi);
+  const stroke = getStrokeSettings(dpi);
 
   const c = document.createElement('canvas');
   c.width = W;
@@ -855,9 +1217,7 @@ async function drawSheet(photos, tpl, withWatermark=true){
 
       drawImageSmart(ctx, img, rect, rotation, photo);
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(1, Math.round(dpi/180));
-      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      drawCutStroke(ctx, rect, stroke);
     }catch(err){
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
@@ -871,15 +1231,107 @@ async function drawSheet(photos, tpl, withWatermark=true){
     }
   }
 
+  if(state.cutMode === 'laser'){
+    drawLaserSheetCornerMarks(ctx, W, H, dpi, margin);
+  }
+
   // Watermark disabled in v109
   // // Watermark disabled in v110
 
   ctx.fillStyle = '#cbd5e1';
   ctx.font = `${Math.round(dpi*0.065)}px sans-serif`;
   ctx.textAlign='left';
-  ctx.fillText('Powered by Matbagy Banha', Math.max(8, margin), H - Math.max(8, margin/2));
+  ctx.fillText('Matbagy Banha - Trend Mall', Math.max(8, margin), H - Math.max(8, margin/2));
 
   return c;
+}
+
+function drawLaserCutSheet(photos, tpl){
+  const dpi = Number(CONFIG.printDpi || CONFIG.dpi || 300);
+  const W = Math.round((tpl.sheetWidthCm || CONFIG.sheetWidthCm || 29.7) * CM_TO_IN * dpi);
+  const H = Math.round((tpl.sheetHeightCm || CONFIG.sheetHeightCm || 45) * CM_TO_IN * dpi);
+  const gap = Math.round((getEffectiveGapMm(tpl) / 10) * CM_TO_IN * dpi);
+  const margin = Math.round(((tpl.outerMarginMm ?? CONFIG.outerMarginMm ?? 0) / 10) * CM_TO_IN * dpi);
+  const safeInset = Math.max(1, Math.round((0.25 / 10) * CM_TO_IN * dpi));
+
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+
+  const ctx = c.getContext('2d', { alpha:false });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  const rects = getRects(tpl, W, H, gap, margin);
+  ctx.fillStyle = '#000000';
+
+  for(let i=0; i<Math.min(photos.length, rects.length); i++){
+    const rect = rects[i];
+    const x = rect.x + safeInset;
+    const y = rect.y + safeInset;
+    const w = Math.max(1, rect.w - safeInset*2);
+    const h = Math.max(1, rect.h - safeInset*2);
+
+    ctx.fillRect(x, y, w, h);
+  }
+
+  drawLaserSheetCornerMarks(ctx, W, H, dpi, margin);
+
+  return c;
+}
+
+function drawLaserSheetCornerMarks(ctx, W, H, dpi, margin){
+  // علامات ضبط الليزر داخل الشيت نفسه: أكبر ومؤمنة للداخل عشان بعض الطابعات بتاكل قرابة 1 سم من الأطراف.
+  const size = Math.max(24, Math.round((6 / 10) * CM_TO_IN * dpi));
+  const inset = Math.max(Math.round((12 / 10) * CM_TO_IN * dpi), Math.round(margin || 0));
+  const marks = [
+    { x: inset, y: inset },
+    { x: W - inset - size, y: inset },
+    { x: inset, y: H - inset - size },
+    { x: W - inset - size, y: H - inset - size }
+  ];
+
+  ctx.save();
+  ctx.fillStyle = '#000000';
+  marks.forEach(m=>{
+    const mx = Math.max(0, Math.min(W - size, Math.round(m.x)));
+    const my = Math.max(0, Math.min(H - size, Math.round(m.y)));
+    ctx.fillRect(mx, my, size, size);
+  });
+  ctx.restore();
+}
+
+function getEffectiveGapMm(tpl){
+  if(state.cutMode === 'zero') return 0;
+  if(state.cutMode === 'laser') return Number(tpl.laserGapMm ?? CONFIG.laserGapMm ?? 2.5);
+  return Number(tpl.gapMm ?? CONFIG.manualGapMm ?? CONFIG.gapMm ?? 1);
+}
+
+function getStrokeSettings(dpi){
+  const mode = state.strokeMode || 'none';
+  if(mode === 'none') return { enabled:false, color:'#ffffff', width:Math.max(1, Math.round(dpi/180)) };
+  const color = mode === 'black' ? '#111111' : mode === 'white' ? '#ffffff' : (state.strokeColor || '#111111');
+  const width = Math.max(1, Math.round((Number(state.strokeWidthMm || 0.4) / 10) * CM_TO_IN * dpi));
+  return { enabled:true, color, width };
+}
+
+function drawCutStroke(ctx, rect, stroke){
+  if(stroke.enabled){
+    ctx.save();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.strokeRect(rect.x + stroke.width/2, rect.y + stroke.width/2, rect.w - stroke.width, rect.h - stroke.width);
+    ctx.restore();
+    return;
+  }
+
+  if(state.cutMode === 'zero') return;
+
+  ctx.save();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
 }
 
 function drawWatermark(ctx, W, H){
@@ -897,6 +1349,24 @@ function drawWatermark(ctx, W, H){
 }
 
 function getRects(tpl, W, H, gap, margin){
+  if(tpl.exactSize && tpl.cols && tpl.rows){
+    const sheetW = Number(tpl.sheetWidthCm || CONFIG.sheetWidthCm || 29.7);
+    const sheetH = Number(tpl.sheetHeightCm || CONFIG.sheetHeightCm || 45);
+    const cellW = (Number(tpl.wCm) / sheetW) * W;
+    const cellH = (Number(tpl.hCm) / sheetH) * H;
+    const gridW = cellW*tpl.cols + gap*(tpl.cols-1);
+    const gridH = cellH*tpl.rows + gap*(tpl.rows-1);
+    const startX = Math.max(margin, (W - gridW) / 2);
+    const startY = Math.max(margin, (H - gridH) / 2);
+    const rects = [];
+    for(let r=0; r<tpl.rows; r++){
+      for(let col=0; col<tpl.cols; col++){
+        rects.push({x:Math.round(startX+col*(cellW+gap)), y:Math.round(startY+r*(cellH+gap)), w:Math.round(cellW), h:Math.round(cellH)});
+      }
+    }
+    return rects;
+  }
+
   if(tpl.mode === 'grid'){
     const cols = tpl.cols, rows = tpl.rows;
     const availW = W - margin*2 - gap*(cols-1); const availH = H - margin*2 - gap*(rows-1); const ratio = tpl.wCm / tpl.hCm;
@@ -915,6 +1385,153 @@ function getRects(tpl, W, H, gap, margin){
   const landW = lW*3 + gap*2; const lStartX = (W - landW)/2; const lY = startY + pH*4 + gap*4;
   for(let col=0;col<3;col++) rects.push({x:Math.round(lStartX+col*(lW+gap)), y:Math.round(lY), w:Math.round(lW), h:Math.round(lH), forceRotate:true});
   return rects;
+}
+
+function computeBestLayout({sheetW, sheetH, itemW, itemH, gapMm=1, marginMm=2}){
+  const gapCm = Number(gapMm || 0) / 10;
+  const marginCm = Number(marginMm || 0) / 10;
+  const usableW = Math.max(0, Number(sheetW) - marginCm*2);
+  const usableH = Math.max(0, Number(sheetH) - marginCm*2);
+  const tries = [
+    {w:Number(itemW), h:Number(itemH), rotated:false},
+    {w:Number(itemH), h:Number(itemW), rotated:true}
+  ];
+  let best = null;
+
+  tries.forEach(t=>{
+    if(!t.w || !t.h || !usableW || !usableH) return;
+    const cols = Math.max(0, Math.floor((usableW + gapCm) / (t.w + gapCm)));
+    const rows = Math.max(0, Math.floor((usableH + gapCm) / (t.h + gapCm)));
+    const count = cols * rows;
+    const usedW = cols ? cols*t.w + (cols-1)*gapCm : 0;
+    const usedH = rows ? rows*t.h + (rows-1)*gapCm : 0;
+    const waste = 1 - ((usedW * usedH) / (usableW * usableH || 1));
+    const candidate = { cols, rows, count, rotated:t.rotated, usedW, usedH, waste };
+    if(!best || candidate.count > best.count || (candidate.count === best.count && candidate.waste < best.waste)){
+      best = candidate;
+    }
+  });
+
+  return best || { cols:0, rows:0, count:0, rotated:false, waste:1 };
+}
+
+function readTemplateInputNumbers(){
+  return {
+    name: $('tplName')?.value.trim() || '',
+    itemW: Number($('tplPhotoW')?.value || 0),
+    itemH: Number($('tplPhotoH')?.value || 0),
+    sheetW: Number($('tplSheetW')?.value || CONFIG.sheetWidthCm || 29.7),
+    sheetH: Number($('tplSheetH')?.value || CONFIG.sheetHeightCm || 45),
+    gapMm: Number($('tplGap')?.value || CONFIG.manualGapMm || 1)
+  };
+}
+
+function previewTemplateFromInputs(){
+  const v = readTemplateInputNumbers();
+  const box = $('tplPreview');
+  if(!v.itemW || !v.itemH){
+    if(box) box.textContent = 'اكتب عرض وطول الصورة أولا.';
+    return null;
+  }
+  const layout = computeBestLayout({
+    sheetW:v.sheetW, sheetH:v.sheetH, itemW:v.itemW, itemH:v.itemH,
+    gapMm:v.gapMm, marginMm:CONFIG.outerMarginMm || 2
+  });
+  if(box){
+    box.textContent = `أفضل رص: ${layout.cols} أعمدة × ${layout.rows} صفوف = ${layout.count} قطعة${layout.rotated ? ' - مع تدوير المقاس' : ''}.`;
+  }
+  return { values:v, layout };
+}
+
+function saveTemplateFromInputs(){
+  const result = previewTemplateFromInputs();
+  if(!result || !result.layout.count){
+    alert('المقاس لا يدخل على الشيت بهذه المعطيات.');
+    return;
+  }
+  const v = result.values;
+  const layout = result.layout;
+  const id = 'custom-' + Date.now();
+  const tpl = {
+    id,
+    label: v.name || `${v.itemW}×${v.itemH}`,
+    count: layout.count,
+    wCm: layout.rotated ? v.itemH : v.itemW,
+    hCm: layout.rotated ? v.itemW : v.itemH,
+    sheetWidthCm: v.sheetW,
+    sheetHeightCm: v.sheetH,
+    gapMm: v.gapMm,
+    outerMarginMm: CONFIG.outerMarginMm || 2,
+    mode:'grid',
+    cols: layout.cols,
+    rows: layout.rows,
+    exactSize:true
+  };
+  saveCustomTemplate(tpl);
+  selectTemplate(id);
+  $('tplPreview').textContent = `تم حفظ ${tpl.label}: ${tpl.count} على الشيت.`;
+}
+
+function getCalcGap(mode){
+  if(mode === 'zero') return 0;
+  if(mode === 'laser') return Number(CONFIG.laserGapMm || 2.5);
+  return Number(CONFIG.manualGapMm || CONFIG.gapMm || 1);
+}
+
+function runMatbagyCalculator(){
+  const productId = $('calcProduct')?.value || '';
+  const product = (CONFIG.priceProducts || []).find(p=>p.id === productId) || {};
+  const itemW = Number($('calcW')?.value || 0);
+  const itemH = Number($('calcH')?.value || 0);
+  const qty = Math.max(1, Number($('calcQty')?.value || 1));
+  const cut = $('calcCut')?.value || 'manual';
+  const gapMm = getCalcGap(cut);
+  const layout = computeBestLayout({
+    sheetW: CONFIG.sheetWidthCm || 29.7,
+    sheetH: CONFIG.sheetHeightCm || 45,
+    itemW,
+    itemH,
+    gapMm,
+    marginMm: CONFIG.outerMarginMm || 2
+  });
+  const sheets = layout.count ? Math.ceil(qty / layout.count) : 0;
+  const unit = Number(product.cutPrices?.[cut] ?? product.unitPrice ?? 0);
+  const total = unit ? sheets * unit : 0;
+  state.lastCalc = { product, itemW, itemH, qty, cut, gapMm, layout, sheets, total };
+  const box = $('calcResult');
+  if(box){
+    const priceText = total ? ` - التكلفة التقريبية: ${total} جنيه` : '';
+    box.textContent = layout.count
+      ? `${product.name || 'منتج'}: ${layout.count} قطعة في الشيت، تحتاج ${sheets} شيت${layout.rotated ? '، والرصة الأفضل بتدوير المقاس' : ''}${priceText}.`
+      : 'المقاس لا يدخل على الشيت بهذه الهوامش والفواصل.';
+  }
+}
+
+function useCalcAsTemplate(){
+  if(!state.lastCalc || !state.lastCalc.layout.count){
+    runMatbagyCalculator();
+  }
+  const c = state.lastCalc;
+  if(!c || !c.layout.count) return;
+  const id = 'calc-' + Date.now();
+  const tpl = {
+    id,
+    label: `${c.product.name || 'مقاس'} ${c.itemW}×${c.itemH}`,
+    count: c.layout.count,
+    wCm: c.layout.rotated ? c.itemH : c.itemW,
+    hCm: c.layout.rotated ? c.itemW : c.itemH,
+    sheetWidthCm: CONFIG.sheetWidthCm || 29.7,
+    sheetHeightCm: CONFIG.sheetHeightCm || 45,
+    gapMm: c.gapMm,
+    outerMarginMm: CONFIG.outerMarginMm || 2,
+    mode:'grid',
+    cols:c.layout.cols,
+    rows:c.layout.rows,
+    exactSize:true
+  };
+  saveCustomTemplate(tpl);
+  selectTemplate(id);
+  $('calcResult').textContent += ' تم استخدام الحساب كمقاس للشيت.';
 }
 
 function drawImageSmart(ctx, img, rect, rotation, photo = {}){
@@ -1090,7 +1707,7 @@ function getReviewSummaryText(){
     sheetCount,
     quality: 'HD 300DPI',
     output: 'نسخة نظيفة بدون Watermark',
-    source: 'تطبيق مطبعجي بنها'
+    source: 'مطبعجي بنها - ترند مول'
   };
 }
 
@@ -1221,7 +1838,7 @@ async function buildCleanZipFile(outputs, order){
 
   const tpl = templates[state.template];
   const orderId = order?.orderId ? cleanFilePart(order.orderId) : 'NO_ORDER';
-  const name = `${orderId}_Matbagy_Banha_${cleanFilePart(tpl.label)}_${outputs.length}Sheets_CLEAN_HD_300DPI_${getTimestampForFile()}.zip`;
+  const name = `${orderId}_TrendMall_MatbagyBanha_${cleanFilePart(tpl.label)}_${outputs.length}Sheets_CLEAN_HD_300DPI_${getTimestampForFile()}.zip`;
 
   const blob = await zip.generateAsync({
     type:'blob',
@@ -1278,7 +1895,7 @@ async function shareWork(){
     const client = JSON.parse(localStorage.getItem('mb_client') || '{}');
 
     const text = [
-      'طلب جديد من تطبيق مطبعجي بنها ✅',
+      'طلب جديد من مطبعجي بنها - ترند مول ✅',
       '',
       `رقم الطلب: ${order.orderId}`,
       `العميل: ${client.name || 'عميل'}`,
@@ -1290,7 +1907,7 @@ async function shareWork(){
       'الجودة: HD 300DPI',
       'الحالة: جاهز للطباعة',
       'الأولوية: عاجل',
-      'المصدر: تطبيق مطبعجي شيتات',
+      'المصدر: مطبعجي بنها - ترند مول',
       '',
       'تم تجهيز ملف ZIP يحتوي على شيتات الطباعة النظيفة بدون علامة مائية.',
       'مهم: الملف يجب إرساله كـ Document / ملف وليس كصور مضغوطة.'

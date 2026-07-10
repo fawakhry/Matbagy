@@ -2,6 +2,8 @@ window.TREND_API_URL = "https://script.google.com/macros/s/AKfycbwGHOduL0BHvH-o4
 
 window.MB_CONFIG = {
   businessName: "مطبعجي بنها",
+  placeName: "ترند مول",
+  ownerName: "ضياء الفواخري",
   whatsappNumber: "201036112077",
 
   activationEndpoint: window.TREND_API_URL,
@@ -9,9 +11,22 @@ window.MB_CONFIG = {
   sheetWidthCm: 29.7,
   sheetHeightCm: 45,
   dpi: 300,
+  printDpi: 300,
   gapMm: 1,
+  manualGapMm: 0.6,
+  laserGapMm: 2.5,
   outerMarginMm: 2,
-  defaultFitMode: "smart"
+  defaultFitMode: "smart",
+  defaultStroke: {
+    mode: "none",
+    color: "#111111",
+    widthMm: 0.4
+  },
+  priceProducts: [
+    { id: "quarter-couche", name: "ربع كوشيه", unitPrice: 0, cutPrices: { manual: 0, zero: 0, laser: 0 } },
+    { id: "quarter-sticker", name: "ربع استيكر", unitPrice: 0, cutPrices: { manual: 0, zero: 0, laser: 0 } },
+    { id: "quarter-lamination", name: "ربع سلوفان", unitPrice: 0, cutPrices: { manual: 0, zero: 0, laser: 0 } }
+  ]
 };
 
 // Patch 27 - TrendOS employee SSO for Matbagy Sheets: Diaa/Wael only + 4x6 template on 29.7x45 sheet.
