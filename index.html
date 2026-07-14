@@ -1,255 +1,1291 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#005BFF" />
-  <title>مطبعجي بنها | ترند مول</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="manifest" href="manifest.webmanifest?v=133" />
-  <link rel="stylesheet" href="styles.css?v=133" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trend Mall | فكرتك جاهزة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800;900&family=Tajawal:wght@400;500;700;800;900&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=trendos-v1898-basic-operations-cleanup">
+  <link rel="stylesheet" href="matbagy_theme_v1860.css?v=trendos-v1898-basic-operations-cleanup">
 </head>
 <body>
-  <div class="watermark">Trend Mall</div>
-
-  <main class="app-shell">
-    <header class="topbar tm-header">
-      <div class="tm-brand-lockup">
-        <div class="tm-logo-mark">T</div>
-        <div>
-          <div class="brand">Trend Mall OS</div>
-          <div class="subbrand">فكرتك جاهزة - مطبعجي بنها للطباعة والهدايا</div>
-        </div>
+<main class="app">
+  <header class="tm-brand-header" aria-label="Trend Mall">
+    <div class="tm-brand-lockup">
+      <div class="tm-logo-mark" aria-hidden="true">TM</div>
+      <div class="tm-brand-copy">
+        <b>Trend Mall</b>
+        <span>فكرتك جاهزة</span>
       </div>
-      <button id="notifyBtn" class="ghost">الإشعارات</button>
+    </div>
+  </header>
+
+  <section id="entryView" class="card entry-card hidden">
+    <h1 id="entryBrandTitle">Trend Mall</h1>
+    <p>بوابة واحدة للعملاء والموظفين: طلبات الطباعة، الكتالوج، العروض، الشيتات، وربط المطابع ومقدمي الخدمات.</p>
+
+    <div class="entry-grid">
+      <button id="employeeEntryBtn" class="entry-option" type="button">
+        <b>دخول الموظفين</b>
+        <span>Trend Mall Operations — خدمة العملاء والأقسام والتسعير والربط الخارجي</span>
+      </button>
+      <button id="customerEntryBtn" class="entry-option customer" type="button">
+        <b>دخول العملاء</b>
+        <span>كود الشات + كلمة المرور لمتابعة الطلبات وفتح طلب جديد من الكتالوج</span>
+      </button>
+    </div>
+
+    <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
+  </section>
+
+  <section id="loginView" class="card login-card">
+    <h1 id="brandTitle">Trend Mall</h1>
+    <p>تسجيل دخول الموظفين</p>
+
+    <label>اسم المستخدم</label>
+    <input id="username" placeholder="مثال: وائل">
+
+    <label>كلمة المرور</label>
+    <input id="password" type="password" placeholder="0000">
+
+    <div class="row">
+      <button id="loginBtn" class="primary">دخول</button>
+      <button id="backToEntryFromLogin" class="ghost" type="button">رجوع</button>
+    </div>
+    <p id="loginMsg" class="msg"></p>
+  </section>
+
+  <section id="customerLoginView" class="card login-card hidden">
+    <h1>دخول العملاء</h1>
+    <p>اكتب كود الشات وكلمة المرور لمتابعة طلباتك على Trend Mall.</p>
+
+    <label>كود الشات</label>
+    <input id="customerCode" inputmode="numeric" placeholder="مثال: 1001">
+
+    <label>كلمة المرور</label>
+    <input id="customerPassword" type="password" placeholder="كلمة مرور العميل">
+
+    <div class="row">
+      <button id="customerLoginBtn" class="primary">دخول العميل</button>
+      <button id="backToEntryFromCustomer" class="ghost" type="button">رجوع</button>
+    </div>
+    <p id="customerLoginMsg" class="msg"></p>
+    <div class="hint">لو نسيت كلمة المرور، اطلب من خدمة العملاء إعادة تعيينها.</div>
+  </section>
+
+  <section id="mainView" class="hidden">
+    <header class="topbar">
+      <div>
+        <h2 id="welcomeTitle">Trend Mall</h2>
+        <p id="roleLabel"></p>
+        <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
+        <p id="liveStatus" class="live-status">التحديث يدوي فقط — اضغط تحديث الآن عند الحاجة</p>
+      </div>
+      <div class="top-actions">
+        <button id="refreshBtn" class="ghost">تحديث الآن</button>
+        <button id="remoteFilesBtn" class="ghost server-files-btn" type="button">📁 ملفات مطبعجي</button>
+        <button id="matbagySheetsBtn" class="ghost quick-tool-btn hidden" type="button">📊 Trend Mall شيتات</button>
+        <button id="matbagyRotetBtn" class="ghost quick-tool-btn hidden" type="button">🧭 روتيت مطبعجي</button>
+        <button id="matbagyNoteBtn" class="ghost quick-tool-btn note-btn" type="button">📝 نوت مطبعجي</button>
+        <button id="accountingBtn" class="ghost quick-tool-btn accounting-btn" type="button">💰 حسابات مطبعجي</button>
+        <button id="endDayBtn" class="ghost end-day-btn hidden">نهاية اليوم</button>
+        <button id="urgentNotificationsBtn" class="ghost notify-btn">🔔 تفعيل إشعارات طباعة على الطاير</button>
+        <button id="changePassBtn" class="ghost">تغيير كلمة المرور</button>
+        <button id="logoutBtn" class="danger">خروج</button>
+      </div>
     </header>
 
-    <section id="activationView" class="card">
-      <h1>تفعيل البرنامج</h1>
-      <p>
-        اكتب رقم الهاتف المسجل لدى مطبعجي بنها.
-        سيتم التفعيل تلقائيًا إذا كان الرقم موجودًا ومفعلًا في قاعدة العملاء.
-      </p>
+    <nav id="tabs" class="tabs"></nav>
 
-      <label>رقم الهاتف</label>
-      <input
-        id="activationCode"
-        type="tel"
-        inputmode="numeric"
-        placeholder="مثال: 01036112077"
-        autocomplete="tel"
-      />
+    <section id="adminWorkspaceHub" class="admin-workspace-hub hidden">
+      <div class="admin-hub-head">
+        <b>مركز إدارة Trend Mall</b>
+        <span>تشغيل، عملاء، فروع، ماركت بليس، موردين، ردود، وإعلانات في مساحة واحدة واضحة.</span>
+      </div>
+      <div id="adminWorkspaceTabs" class="admin-workspace-tabs"></div>
+    </section>
 
-      <button id="activateBtn" class="primary">تفعيل التطبيق</button>
-      <p id="activationMsg" class="msg"></p>
-
-      <div class="hint">
-        التفعيل يتم برقم الهاتف فقط، ولا تحتاج إلى إدخال الرقم مرة أخرى على نفس الجهاز.
+    <section id="managementDashboard" class="card dashboard-card hidden">
+      <div class="table-tools">
+        <h3>متابعة اليوم</h3>
+        <span id="dashboardStatus"></span>
+      </div>
+      <div id="dashboardGrid" class="dashboard-grid">
+        <div class="dash-empty">جاري تحميل ملخص التشغيل...</div>
       </div>
     </section>
 
-    <section id="appView" class="hidden">
-      <section class="card welcome">
-        <div>
-          <h2 id="helloTitle">أهلاً بك</h2>
-          <p>
-            اختار المقاس وارفع الصور، وسيب تجهيز الشيت والرص والتدوير علينا.
-          </p>
-        </div>
-        <button id="logoutBtn" class="danger ghost">إلغاء التفعيل</button>
-      </section>
-
-      <section class="card">
-        <h2>1) اختار المقاس</h2>
-
-        <div id="templates" class="templates">
-          <button class="template active" data-template="6x9">
-            <b>6×9</b>
-            
-          </button>
-
-          <button class="template" data-template="10x15">
-            <b>10×15</b>
-            
-          </button>
-
-          <button class="template" data-template="4x6">
-            <b>4×6</b>
-            <span>49 صورة على شيت 29.7×45</span>
-          </button>
-
-          <button class="template" data-template="7x10">
-            <b>7×10</b>
-            
-          </button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>2) ارفع الصور</h2>
-
-        <input id="fileInput" type="file" accept="image/*" multiple />
-
-        <div id="qualitySummary" class="hint quality-note">
-          الصور الأصلية تعطي أفضل طباعة. البرنامج سيفحص الجودة والتدوير تلقائيًا.
-        </div>
-
-        <div class="row">
-          <button id="repeatOneBtn" class="ghost" type="button">كرر الصورة على الشيت كله</button>
-          <button id="clearBtn" class="ghost">مسح الصور</button>
-          <button id="rotateAllBtn" class="ghost employee-only">تدوير يدوي</button>
-        </div>
-
-        <div class="smart-mode-note">
-          الوضع الذكي مفعل تلقائيًا: تدوير، فحص جودة، وضبط الصورة داخل الفريم بأبسط شكل.
-        </div>
-
-        <div id="photoList" class="photo-list"></div>
-      </section>
-
-      <section class="card">
-        <h2>3) إنشاء الشيتات</h2>
-
-        <div class="quick-cut-options" aria-label="اختيارات القص السريعة">
-          <button class="cut-chip active" data-cut-mode="manual">قص عادي</button>
-          <button class="cut-chip" data-cut-mode="zero">0 فواصل</button>
-          <button class="cut-chip" data-cut-mode="laser">ليزر</button>
-        </div>
-
-        <button id="generateBtn" class="primary big-action">جهز الشيت</button>
-
-        <p id="status" class="msg"></p>
-
-        <div id="preview" class="preview"></div>
-
-        <div class="hint">
-          عند الضغط على الإرسال سيتم تجهيز ملف ZIP وتنزيله، ثم فتح واتساب برسالة جاهزة. أرسل ملف ZIP من التنزيلات كـ Document / مستند وليس كصورة.
-        </div>
-
-        <div class="row">
-          <button id="downloadBtn" class="primary hidden">تحميل ملفات الطباعة HD</button>
-          <button id="laserCutPdfBtn" class="ghost hidden">تنزيل PDF قص ليزر</button>
-          <button id="shareBtn" class="primary hidden">تجهيز الملف وفتح واتساب</button>
-        </div>
-
-        <div id="printFileNote" class="hint hidden">
-          مهم جدًا: لا ترسل الشيتات كصور على واتساب حتى لا تقل الجودة.
-          حمّل ملفات الطباعة HD 300DPI ثم أرسل ملف ZIP كـ Document / مستند.
-        </div>
-      </section>
-
-      <section id="employeePanel" class="card employee-panel hidden">
-        <h2>أدوات متقدمة</h2>
-
-        <details>
-          <summary>مقاس أو اسطمبة جديدة</summary>
-          <div class="employee-grid">
-            <label>اسم المقاس
-              <input id="tplName" type="text" placeholder="مثال: ربع كوشيه" />
-            </label>
-            <label>عرض الصورة سم
-              <input id="tplPhotoW" type="number" step="0.1" placeholder="6" />
-            </label>
-            <label>طول الصورة سم
-              <input id="tplPhotoH" type="number" step="0.1" placeholder="9" />
-            </label>
-            <label>عرض الشيت سم
-              <input id="tplSheetW" type="number" step="0.1" value="29.7" />
-            </label>
-            <label>طول الشيت سم
-              <input id="tplSheetH" type="number" step="0.1" value="45" />
-            </label>
-            <label>الفاصل مم
-              <input id="tplGap" type="number" step="0.1" value="1" />
-            </label>
-          </div>
-          <div id="tplPreview" class="hint">اكتب المقاسات وسيتم حساب أفضل رص.</div>
-          <div class="row">
-            <button id="calcTplBtn" class="ghost" type="button">احسب الرص</button>
-            <button id="saveTplBtn" class="primary" type="button">حفظ الاسطمبة</button>
-          </div>
-        </details>
-
-        <details>
-          <summary>حاسبة مطبعجي</summary>
-          <div class="employee-grid">
-            <label>المنتج
-              <select id="calcProduct"></select>
-            </label>
-            <label>عرض القطعة سم
-              <input id="calcW" type="number" step="0.1" placeholder="6" />
-            </label>
-            <label>طول القطعة سم
-              <input id="calcH" type="number" step="0.1" placeholder="9" />
-            </label>
-            <label>عدد القطع
-              <input id="calcQty" type="number" step="1" value="100" />
-            </label>
-            <label>طريقة القص
-              <select id="calcCut">
-                <option value="manual">قص عادي</option>
-                <option value="zero">0 فواصل</option>
-                <option value="laser">ليزر</option>
-              </select>
-            </label>
-          </div>
-          <div class="row">
-            <button id="runCalcBtn" class="primary" type="button">احسب</button>
-            <button id="useCalcAsTemplateBtn" class="ghost" type="button">استخدمه كمقاس</button>
-          </div>
-          <div id="calcResult" class="hint">الحاسبة تراعي الهوامش والفواصل وطريقة القص.</div>
-        </details>
-
-        <details>
-          <summary>حواف وفواصل</summary>
-          <div class="employee-grid">
-            <label>الاستروك
-              <select id="strokeMode">
-                <option value="none">بدون</option>
-                <option value="black">أسود</option>
-                <option value="white">أبيض</option>
-                <option value="custom">لون مخصص</option>
-              </select>
-            </label>
-            <label>لون مخصص
-              <input id="strokeColor" type="color" value="#111111" />
-            </label>
-            <label>سُمك الاستروك مم
-              <input id="strokeWidthMm" type="number" step="0.1" value="0.4" />
-            </label>
-          </div>
-        </details>
-      </section>
+    <section id="platformSectionsCard" class="card platform-sections-card hidden">
+      <div class="table-tools">
+        <h3>إدارة خدمات البوابة <span class="help-dot" title="أي خدمة تضيفها هنا تظهر للعميل ككارت جميل: DTF / Banner / UV / مج / تابلوه.">؟</span></h3>
+        <span id="platformSectionsStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        دي الخدمات اللي العميل بيشوفها على البوابة. بعد إضافة الخدمة اربطها برقم مطبعة أو فرع من كارت ربط الخدمات.
+      </div>
+      <div class="platform-section-form">
+        <input id="platformSectionCode" placeholder="كود الخدمة - اختياري">
+        <input id="platformSectionName" placeholder="اسم الخدمة مثل Banner / DTF / UV">
+        <input id="platformSectionDescription" class="wide" placeholder="وصف مختصر يظهر للعميل">
+        <select id="platformSectionType">
+          <option selected>طباعة</option>
+          <option>ليزر</option>
+          <option>تصميم</option>
+          <option>توصيل</option>
+          <option>خدمة خارجية</option>
+        </select>
+        <select id="platformSectionExecution">
+          <option selected>وسيط</option>
+          <option>داخلي</option>
+          <option>فرع مطبعجي</option>
+          <option>مطبعة شريكة</option>
+        </select>
+        <select id="platformSectionActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="platformSectionSort" type="number" placeholder="ترتيب الظهور">
+        <input id="platformSectionSupplier" placeholder="اسم المورد/المطبعة داخليًا">
+        <input id="platformSectionWhatsapp" placeholder="واتساب المورد - اختياري">
+        <input id="platformSectionDesignPrice" type="number" min="0" value="10" placeholder="سعر خدمة التصميم">
+        <input id="platformSectionNotes" class="wide" placeholder="ملاحظات داخلية">
+        <input id="platformSectionImage" type="file" accept="image/*">
+        <button id="savePlatformSectionBtn" class="primary" type="button">حفظ الخدمة</button>
+        <button id="refreshPlatformSectionsBtn" class="ghost" type="button">تحديث الخدمات</button>
+      </div>
+      <div id="platformSectionsList" class="platform-sections-list">
+        <div class="dash-empty">لم يتم تحميل الخدمات بعد.</div>
+      </div>
     </section>
-  </main>
 
-  <script src="config.js?v=133"></script>
+    <section id="serviceRoutesCard" class="card service-routes-card hidden">
+      <div class="table-tools">
+        <h3>ربط الخدمات بالمطابع والأرقام <span class="help-dot" title="اربط كل خدمة برقم مطبعة أو رحمة أو فرع، وحدد وحدة القياس وطريقة حساب نسبة مطبعجي.">؟</span></h3>
+        <span id="serviceRoutesStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        هنا بداية تشغيل نظام السوق: خدمة + رقم/فرع منفذ + وحدة قياس + نسبة مطبعجي أو اشتراك شهري. مثال: Banner بالمتر، DTF بالقطعة، تصميم بالأوردر.
+      </div>
+      <div class="service-route-form">
+        <input id="routeCode" placeholder="كود الربط - اختياري">
+        <select id="routeServiceSelect" title="اختار خدمة من خدمات البوابة أو اكتبها يدويًا">
+          <option value="">اكتب الخدمة يدويًا</option>
+        </select>
+        <input id="routeServiceName" placeholder="اسم الخدمة لو مش موجودة في القائمة">
+        <select id="routeServiceType">
+          <option selected>طباعة</option>
+          <option>تصميم</option>
+          <option>توصيل</option>
+          <option>ليزر</option>
+          <option>خدمة خارجية</option>
+        </select>
+        <select id="routeChannel" title="طريقة خروج الطلب للمنفذ">
+          <option selected>رقم مطبعة</option>
+          <option>من خلال رحمة</option>
+          <option>فرع مطبعجي</option>
+          <option>شريك مخفي</option>
+        </select>
+        <input id="routeProviderName" placeholder="اسم المطبعة / المسؤول / رحمة">
+        <input id="routeWhatsapp" placeholder="رقم واتساب المطبعة أو المسؤول">
+        <select id="routeBranchCode"><option value="">بدون فرع محدد</option></select>
+        <select id="routeUnit" title="الوحدة التي ستحسب عليها الكمية والنسبة">
+          <option selected>قطعة</option>
+          <option>متر</option>
+          <option>متر مربع</option>
+          <option>تصميم</option>
+          <option>أوردر</option>
+          <option>كيلو</option>
+        </select>
+        <select id="routeBillingMode" title="طريقة حساب حق مطبعجي">
+          <option selected>نسبة على الوحدة</option>
+          <option>مبلغ ثابت على الوحدة</option>
+          <option>اشتراك شهري</option>
+          <option>نسبة + اشتراك</option>
+        </select>
+        <input id="routeCommissionValue" type="number" min="0" placeholder="نسبة % أو مبلغ مطبعجي لكل وحدة">
+        <input id="routeMonthlySubscription" type="number" min="0" placeholder="قيمة الاشتراك الشهري">
+        <input id="routeSubscriptionFrom" type="date" title="بداية الاشتراك">
+        <input id="routeSubscriptionTo" type="date" title="نهاية الاشتراك">
+        <select id="routeActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="routeNotes" class="wide" placeholder="ملاحظات: شروط التسليم، منع التعامل المباشر، سعر التنفيذ الداخلي...">
+        <button id="saveServiceRouteBtn" class="primary" type="button">حفظ ربط الخدمة</button>
+        <button id="refreshServiceRoutesBtn" class="ghost" type="button">تحديث الربط</button>
+      </div>
+      <div id="serviceRoutesList" class="service-routes-list">
+        <div class="dash-empty">لم يتم تحميل ربط الخدمات بعد.</div>
+      </div>
+    </section>
 
-  <!-- مكتبات تصدير ملف الطباعة بجودة عالية -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-  <!-- ملف تصدير الشيتات PDF / ZIP -->
-  <script src="print-export.js?v=133"></script>
+    <section id="marketplaceCard" class="card marketplace-admin-card hidden">
+      <div class="table-tools">
+        <h3>ماركت بليس Trend Mall <span class="help-dot" title="بيع مساحة داخل Trend Mall لأي بائع أو مطبعة أو محل. العميل يطلب تحت مظلة المنصة، ونسبة المنصة تتحسب على كل طلب.">؟</span></h3>
+        <span id="marketplaceStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        أضف بائع/مساحة، ثم أضف منتجاته. العميل يشوف كارت البائع، يدخل يلاقي منتجاته، والطلب يفتح شات مطبعجي بنفس تجربة واتساب.
+      </div>
+      <div class="marketplace-form">
+        <input id="marketVendorCode" placeholder="كود البائع - اختياري">
+        <input id="marketVendorName" placeholder="اسم البائع/المساحة مثل: هدايا مريم">
+        <input id="marketVendorCategory" placeholder="التصنيف: هدايا / ملابس / طباعة / إكسسوارات">
+        <input id="marketVendorWhatsapp" placeholder="واتساب البائع أو رقم رحمة المسؤول">
+        <input id="marketVendorCommission" type="number" min="0" value="10" placeholder="نسبة مطبعجي %">
+        <select id="marketVendorActive"><option selected>نعم</option><option>لا</option></select>
+        <input id="marketVendorSort" type="number" placeholder="ترتيب الظهور">
+        <input id="marketVendorImage" type="file" accept="image/*">
+        <input id="marketVendorNotes" class="wide" placeholder="ملاحظات داخلية: طريقة التسليم، شروط البائع، التسوية">
+        <button id="saveMarketVendorBtn" class="primary" type="button">حفظ البائع/المساحة</button>
+      </div>
+      <div class="marketplace-form marketplace-product-form">
+        <select id="marketProductVendor"><option value="">اختار البائع</option></select>
+        <input id="marketProductCode" placeholder="كود المنتج - اختياري">
+        <input id="marketProductName" placeholder="اسم المنتج/الخدمة">
+        <input id="marketProductPrice" type="number" min="0" placeholder="السعر المبدئي">
+        <select id="marketProductUnit"><option selected>قطعة</option><option>متر</option><option>متر مربع</option><option>تصميم</option><option>أوردر</option></select>
+        <select id="marketProductActive"><option selected>نعم</option><option>لا</option></select>
+        <input id="marketProductSort" type="number" placeholder="ترتيب المنتج">
+        <input id="marketProductImage" type="file" accept="image/*">
+        <input id="marketProductDesc" class="wide" placeholder="وصف مختصر يظهر للعميل">
+        <button id="saveMarketProductBtn" class="primary" type="button">حفظ المنتج</button>
+        <button id="refreshMarketplaceBtn" class="ghost" type="button">تحديث الماركت</button>
+      </div>
+      <div id="marketplaceAdminList" class="marketplace-admin-list">
+        <div class="dash-empty">لم يتم تحميل الماركت بليس بعد.</div>
+      </div>
+    </section>
 
-  <!-- ملف تشغيل التطبيق الأساسي -->
-  <script src="app.js?v=133"></script>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(reg) { if (reg && reg.update) reg.update(); });
-      });
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!window.__mbReloadedForUpdate) {
-          window.__mbReloadedForUpdate = true;
-          window.location.reload();
-        }
-      });
+    <section id="platformAdsCard" class="card platform-ads-card hidden">
+      <div class="table-tools">
+        <h3>لوحة إعلانات العملاء</h3>
+        <span id="platformAdsStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        استوديو إعلانات: ارفع صورة الإعلان، ظبط تكبيرها ومكانها بالماوس أو التاتش، ثم ارفعها بدون إظهار اسم الملف للعميل.
+      </div>
+      <div class="platform-ad-studio">
+        <div class="platform-ad-form">
+          <input id="platformAdTitle" placeholder="اسم داخلي اختياري - لا يظهر للعميل">
+          <select id="platformAdActive">
+            <option selected>نعم</option>
+            <option>لا</option>
+          </select>
+          <select id="platformAdFit">
+            <option selected>cover</option>
+            <option>contain</option>
+          </select>
+          <input id="platformAdFile" type="file" accept="image/*">
+          <button id="uploadPlatformAdBtn" class="primary" type="button">رفع الإعلان</button>
+          <button id="refreshPlatformAdsBtn" class="ghost" type="button">تحديث الإعلانات</button>
+        </div>
+        <div class="ad-editor-layout">
+          <div id="platformAdPreviewWrap" class="ad-preview-wrap empty" title="اسحب الصورة بالماوس أو بإصبعك لتغيير مكانها">
+            <img id="platformAdPreviewImg" alt="معاينة الإعلان">
+            <span class="empty-note">اختار صورة الإعلان لمعاينتها هنا</span>
+          </div>
+          <div class="ad-editor-controls">
+            <label>تكبير/تصغير <b id="platformAdZoomLabel">1.00x</b></label>
+            <input id="platformAdZoom" type="range" min="0.5" max="3" step="0.05" value="1">
+            <label>تحريك أفقي</label>
+            <input id="platformAdOffsetX" type="range" min="-300" max="300" step="1" value="0">
+            <label>تحريك رأسي</label>
+            <input id="platformAdOffsetY" type="range" min="-300" max="300" step="1" value="0">
+            <button id="platformAdResetViewBtn" class="ghost" type="button">إعادة ضبط الصورة</button>
+            <div class="hint">الإعلان سيظهر للعميل كصورة فقط بدون اسم ملف. التحريك والتكبير محفوظان مع الإعلان.</div>
+          </div>
+        </div>
+      </div>
+      <div id="platformAdsList" class="platform-ads-list">
+        <div class="dash-empty">لم يتم تحميل الإعلانات بعد.</div>
+      </div>
+    </section>
+
+
+
+
+    <section id="franchiseBranchesCard" class="card franchise-admin-card hidden">
+      <div class="table-tools">
+        <h3>إدارة فروع وفرنشايز مطبعجي مصر</h3>
+        <span id="franchiseBranchesStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        القاعدة: العميل يتعامل مع واجهة مطبعجي. الفرع قد يكون استلام وتسليم فقط، أو فرنشايز كامل، أو شريك تنفيذ مخفي. التسليم النهائي والمتابعة باسم مطبعجي.
+      </div>
+      <div class="franchise-branch-form">
+        <input id="franchiseBranchCode" placeholder="كود الفرع - اختياري">
+        <input id="franchiseBrandName" placeholder="اسم واجهة الفرع مثل مطبعجي بنها 1">
+        <input id="franchisePartnerName" placeholder="اسم الشريك/المطبعة داخليًا - لا يظهر للعميل">
+        <input id="franchiseGovernorate" placeholder="المحافظة">
+        <input id="franchiseCity" placeholder="المدينة">
+        <input id="franchisePublicArea" placeholder="المنطقة الظاهرة للعميل مثل بنها الجديدة">
+        <input id="franchiseLat" placeholder="Latitude GPS">
+        <input id="franchiseLng" placeholder="Longitude GPS">
+        <select id="franchiseRole">
+          <option selected>فرنشايز كامل</option>
+          <option>استلام وتسليم فقط</option>
+          <option>تنفيذ + تسليم</option>
+          <option>شريك تنفيذ مخفي</option>
+        </select>
+        <select id="franchiseVisibility">
+          <option selected>ظاهر كفرع مطبعجي</option>
+          <option>ظاهر باسم عام</option>
+          <option>مخفي</option>
+        </select>
+        <select id="franchiseActive">
+          <option selected>نعم</option>
+          <option>لا</option>
+        </select>
+        <input id="franchiseCommission" type="number" min="0" value="15" placeholder="نسبة مطبعجي %">
+        <input id="franchiseMonthly" type="number" min="0" placeholder="اشتراك شهري - اختياري">
+        <label class="inline-check"><input id="franchiseCanReceive" type="checkbox" checked> يستلم أوردرات</label>
+        <label class="inline-check"><input id="franchiseCanExecute" type="checkbox" checked> ينفذ</label>
+        <label class="inline-check"><input id="franchiseCanDeliver" type="checkbox" checked> يسلم باسم مطبعجي</label>
+        <input id="franchisePublicDescription" class="wide" placeholder="وصف يظهر للعميل مثل: استلام وتسليم ومتابعة من خلال مطبعجي">
+        <input id="franchiseNotes" class="wide" placeholder="ملاحظات داخلية وشروط منع التعامل المباشر">
+        <button id="saveFranchiseBranchBtn" class="primary" type="button">حفظ الفرع / الفرنشايز</button>
+        <button id="refreshFranchiseBranchesBtn" class="ghost" type="button">تحديث الفروع</button>
+      </div>
+      <div class="branch-customer-assign-box">
+        <h4>ربط عميل بفرع مطبعجي</h4>
+        <div class="hint">اكتب كود الشات أو اسم العميل، واختار الفرع المسؤول عنه. العميل يفضل واجهته مطبعجي والفرع يتسجل داخليًا.</div>
+        <div class="branch-assign-form">
+          <input id="assignCustomerQuery" placeholder="كود الشات أو اسم العميل">
+          <select id="assignCustomerBranchSelect">
+            <option value="">اختر فرع مطبعجي</option>
+          </select>
+          <button id="assignCustomerBranchBtn" class="primary" type="button">ربط العميل بالفرع</button>
+        </div>
+        <p id="assignCustomerBranchStatus" class="msg"></p>
+      </div>
+      <div id="franchiseBranchesList" class="franchise-admin-list">
+        <div class="dash-empty">لم يتم تحميل فروع مطبعجي بعد.</div>
+      </div>
+    </section>
+
+
+    <section id="whiteLabelCard" class="card white-label-card hidden">
+      <div class="table-tools">
+        <h3>نسخة مطبعة / White Label</h3>
+        <span id="whiteLabelStatus"></span>
+      </div>
+      <div class="hint strong-hint">
+        دي نسخة تديها لأي مطبعة باسمها وواتسابها، لكن تقفل عنها خدمات مطبعجي الخاصة مثل شبكة الفروع، Marketplace مصر، وقاعدة العملاء الأساسية.
+      </div>
+      <div class="white-label-grid">
+        <input id="whiteLabelPlatformName" placeholder="اسم المنصة عند المطبعة مثل: مطبعة النور">
+        <input id="whiteLabelOwnerName" placeholder="اسم صاحب النسخة / المطبعة">
+        <input id="whiteLabelWhatsapp" placeholder="رقم واتساب المطبعة">
+        <input id="whiteLabelDomain" placeholder="الرابط أو الدومين الخاص بها - اختياري">
+        <input id="whiteLabelPrimaryColor" placeholder="لون الواجهة مثل #075e54" value="#075e54">
+        <input id="whiteLabelLogoUrl" placeholder="رابط اللوجو - اختياري">
+        <input id="whiteLabelNotes" class="wide" placeholder="ملاحظات الترخيص والبنود التجارية">
+      </div>
+      <div class="white-feature-panel">
+        <b>الخدمات المتاحة في نسخة المطبعة</b>
+        <label><input id="whiteFeatureCustomerPortal" type="checkbox" checked> بوابة العملاء</label>
+        <label><input id="whiteFeatureOrderChat" type="checkbox" checked> شات الطلبات والملفات مثل واتساب</label>
+        <label><input id="whiteFeatureDesigner" type="checkbox" checked> خدمة المصمم الذكي / طلب تصميم</label>
+        <label><input id="whiteFeatureAds" type="checkbox" checked> لوحة إعلانات العملاء</label>
+        <label><input id="whiteFeatureMatbagySheets" type="checkbox"> Trend Mall شيتات</label>
+        <label><input id="whiteFeatureFranchise" type="checkbox"> فروع وفرنشايز مطبعجي مصر</label>
+        <label><input id="whiteFeatureMarketplace" type="checkbox"> Marketplace الشركاء القومي</label>
+        <label><input id="whiteFeaturePhoneLeads" type="checkbox"> خدمة أرقام العملاء</label>
+      </div>
+      <div id="whiteLabelSummary" class="white-label-summary"></div>
+      <div class="row">
+        <button id="saveWhiteLabelBtn" class="primary" type="button">حفظ إعدادات نسخة المطبعة</button>
+        <button id="refreshWhiteLabelBtn" class="ghost" type="button">تحديث</button>
+      </div>
+      <div class="hint">
+        المقترح التجاري: النسخة الخارجية تاخد بوابة عملاء + واتس داخلي + طلبات + مصمم ذكي، ويتقفل عنها شبكة فروع مطبعجي مصر وقاعدة عملاء مطبعجي وأدوات التوسع الخاصة بك.
+      </div>
+    </section>
+
+    <section id="phoneLeadsCard" class="card phone-leads-card hidden">
+      <div class="table-tools">
+        <h3>خدمة أرقام العملاء الآمنة</h3>
+        <span id="phoneLeadsStatus"></span>
+      </div>
+      <div class="hint danger-hint">
+        الخدمة دي لتجميع أرقام العملاء الموجودين في قاعدة بياناتك أو أوردراتك فقط. لا تستخدمها لسحب أرقام ناس بدون موافقة أو من جروبات/مواقع خارجية.
+      </div>
+      <div class="phone-leads-tools">
+        <select id="phoneLeadsSource">
+          <option value="customers" selected>من شيت العملاء</option>
+          <option value="orders">من شيت الأوردرات</option>
+          <option value="all">العملاء + الأوردرات</option>
+        </select>
+        <label class="inline-check"><input id="phoneLeadsOptInOnly" type="checkbox"> المصرح لهم بالتواصل فقط لو العمود موجود</label>
+        <button id="loadPhoneLeadsBtn" class="primary" type="button">تجميع الأرقام</button>
+        <button id="copyPhoneLeadsBtn" class="ghost" type="button">نسخ</button>
+        <button id="downloadPhoneLeadsBtn" class="ghost" type="button">تصدير CSV</button>
+        <button id="copyCustomerInviteLinksBtn" class="ghost" type="button">نسخ دعوات المنصة</button>
+      </div>
+      <div id="phoneLeadsList" class="phone-leads-list">
+        <div class="dash-empty">لم يتم تجميع أرقام بعد.</div>
+      </div>
+    </section>
+
+    <section id="aiKnowledgeCard" class="card ai-knowledge-card hidden">
+      <div class="table-tools">
+        <h3>نوت مطبعجي / معرفة واتس AI</h3>
+        <span id="knowledgeStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        دي نوت مطبعجي ومعرفة واتس AI. أي تعديل هنا يفضل محفوظ كمرجع للردود والتشغيل، ويمكن استخدامه فورًا في خدمة العملاء.
+      </div>
+
+      <div class="knowledge-layout">
+        <div class="knowledge-form">
+          <input id="knowledgeId" type="hidden">
+
+          <label>القسم</label>
+          <select id="knowledgeCategory">
+            <option>قواعد التشغيل</option>
+            <option>ردود واتساب</option>
+            <option>سياسة التسليم</option>
+            <option>الأسعار والخدمات</option>
+            <option>الممنوعات</option>
+            <option>تحويل للدعم</option>
+            <option>إعدادات عامة</option>
+          </select>
+
+          <label>العنوان</label>
+          <input id="knowledgeTitle" placeholder="مثال: سياسة التسليم">
+
+          <label>كلمات مفتاحية</label>
+          <input id="knowledgeKeywords" placeholder="مثال: تسليم، وقت، ميعاد، استلام">
+
+          <label>المحتوى / قاعدة الرد</label>
+          <textarea id="knowledgeContent" rows="5" placeholder="اكتب القاعدة التي سيعتمد عليها واتس AI في الردود"></textarea>
+
+          <div class="form-grid knowledge-small-grid">
+            <div>
+              <label>الأولوية</label>
+              <select id="knowledgePriority">
+                <option>عالية</option>
+                <option selected>عادية</option>
+                <option>منخفضة</option>
+              </select>
+            </div>
+            <div>
+              <label>مفعل؟</label>
+              <select id="knowledgeActive">
+                <option selected>نعم</option>
+                <option>لا</option>
+              </select>
+            </div>
+          </div>
+
+          <label>ملاحظات داخلية</label>
+          <input id="knowledgeNotes" placeholder="اختياري">
+
+          <div class="row knowledge-actions">
+            <button id="saveKnowledgeBtn" class="primary">حفظ المعرفة</button>
+            <button id="newKnowledgeBtn" class="ghost" type="button">قاعدة جديدة</button>
+            <button id="refreshKnowledgeBtn" class="ghost" type="button">تحديث المعرفة</button>
+          </div>
+        </div>
+
+        <div class="knowledge-list-wrap">
+          <div class="knowledge-search-row">
+            <input id="knowledgeSearch" placeholder="بحث في المعرفة">
+          </div>
+          <div id="knowledgeList" class="knowledge-list">
+            <div class="dash-empty">جاري تحميل المعرفة...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="addCustomerCard" class="card hidden">
+      <div class="table-tools">
+        <h3>إضافة / تعديل عميل</h3>
+        <span id="addCustomerStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        رحمه تقدر تكود عميل جديد أو تعدل بيانات عميل موجود من نفس الشاشة. لو الاسم أو الرقم موجود قبل كده، يتم تحديث بيانات العميل بدل تكراره.
+      </div>
+
+      <div class="form-grid">
+        <div class="wide">
+          <label>اسم الشات / المكتب / العميل <span class="req">*</span></label>
+          <input id="newClientName" placeholder="مثال: اسماء رمضان" autocomplete="off">
+        </div>
+
+        <div>
+          <label>اسم المسؤول</label>
+          <input id="newClientManager" placeholder="يتحدد تلقائيًا">
+        </div>
+
+        <div>
+          <label>رقم العميل الأساسي</label>
+          <input id="newClientPhone" inputmode="tel" placeholder="اختياري">
+        </div>
+
+        <div>
+          <label>رقم إضافي</label>
+          <input id="newClientExtraPhone" inputmode="tel" placeholder="اختياري">
+        </div>
+
+        <div>
+          <label>نوع العميل</label>
+          <input id="newClientType" placeholder="مكتب / واتساب / عميل مباشر">
+        </div>
+
+        <div>
+          <label>فرع مطبعجي الخاص بالعميل</label>
+          <select id="newClientBranch">
+            <option value="">بدون فرع محدد</option>
+          </select>
+        </div>
+
+        <div>
+          <label>مديونية حالية</label>
+          <input id="newClientDebt" type="number" min="0" value="0" placeholder="0">
+        </div>
+
+        <div>
+          <label>مفعل؟</label>
+          <select id="newClientActive">
+            <option>نعم</option>
+            <option>لا</option>
+          </select>
+        </div>
+
+        <div class="wide">
+          <label>ملاحظات العميل</label>
+          <input id="newClientNotes" placeholder="اختياري">
+        </div>
+      </div>
+
+      <button id="createCustomerBtn" class="primary">حفظ / تعديل العميل</button>
+    </section>
+
+    <section id="addOrderCard" class="card hidden">
+      <div class="table-tools">
+        <h3>إضافة أوردر جديد</h3>
+        <span id="addOrderStatus"></span>
+      </div>
+
+      <div class="hint strong-hint">
+        للعميل المسجل: اكتب اسم الشات. للعميل الخارجي / العابر: اكتب 3 أرقام أو رقم كامل فقط ولن يتم حفظه في شيت العملاء.
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>نوع إدخال العميل</label>
+          <select id="newCustomerMode">
+            <option value="registered" selected>عميل مسجل</option>
+            <option value="external">عميل خارجي / عابر</option>
+          </select>
+        </div>
+
+        <div class="suggest-box">
+          <label>اسم العميل / الشات</label>
+          <input id="newCustomerName" placeholder="ابدأ بكتابة أول حرف من اسم الشات" autocomplete="off">
+          <div id="customerSuggestions" class="suggestions hidden"></div>
+        </div>
+
+        <div>
+          <label>رقم / آخر أرقام / علامة العميل</label>
+          <input id="newCustomerPhone" inputmode="tel" placeholder="اختياري للعميل المسجل - 3 أرقام فأكثر للعميل الخارجي">
+        </div>
+
+        <div>
+          <label>نوع العميل</label>
+          <input id="newCustomerType" placeholder="اختياري - يملأ تلقائياً للعميل الخارجي">
+        </div>
+
+        <div>
+          <label>القسم <span class="req">*</span></label>
+          <select id="newDepartment">
+            <option>طباعة</option>
+            <option>ليزر</option>
+            <option>متعدد الأقسام</option>
+          </select>
+        </div>
+
+        <div id="heatPressBox" class="heatpress-box hidden">
+          <label>علامة المكبس</label>
+          <label class="checkline"><input id="newHeatPress" type="checkbox"> مكبس حراري</label>
+          <small>تظهر باللون الأحمر في شاشة الأوردرات وشاشة المكبس.</small>
+        </div>
+
+        <div id="flyPrintBox" class="flyprint-box hidden">
+          <label>باند طباعة على الطاير</label>
+          <label class="checkline"><input id="newFlyPrint" type="checkbox"> طباعة على الطاير</label>
+          <small>للعميل الذي يرسل ملف جاهز للطباعة، وتظهر له إشعارات لموظف الطباعة.</small>
+        </div>
+
+        <div class="wide">
+          <label>اسم البند / نوع الشغل</label>
+          <input id="newItemName" placeholder="اختياري - لو فاضي هيتكتب أوردر جديد">
+        </div>
+
+        <div>
+          <label>الكمية</label>
+          <input id="newQty" type="number" min="1" value="1">
+        </div>
+
+        <div>
+          <label>الأولوية</label>
+          <select id="newPriority">
+            <option selected>عادي</option>
+            <option>عاجل</option>
+            <option>مؤجل</option>
+          </select>
+        </div>
+
+        <div>
+          <label>الحالة</label>
+          <select id="newStatus">
+            <option>طلب جديد</option>
+            <option>تحت التنفيذ</option>
+            <option>في انتظار موافقة العميل</option>
+            <option>في انتظار المكبس</option>
+            <option>في قسم التسليمات</option>
+            <option>تم التسليم</option>
+            <option>مكرر</option>
+            <option>ملغي</option>
+          </select>
+        </div>
+
+        <div>
+          <label>مسؤول القسم</label>
+          <input id="newAssignedTo" placeholder="يتحدد تلقائياً حسب القسم">
+        </div>
+
+        <div class="wide">
+          <label>ملاحظات</label>
+          <input id="newNotes" placeholder="اختياري">
+        </div>
+      </div>
+
+      <button id="createOrderBtn" class="primary">إضافة الأوردر</button>
+    </section>
+
+    <section class="card">
+      <div class="table-tools">
+        <h3 id="screenTitle">الأوردرات</h3>
+        <span id="loadingText"></span>
+      </div>
+
+      <div id="currentOrderBar" class="current-order hidden"></div>
+      <div id="statsBar" class="stats"></div>
+
+      <div class="filters">
+        <input id="tableSearch" placeholder="بحث برقم الأوردر / اسم العميل / رقم العميل / البند">
+        <select id="statusFilter">
+          <option value="">كل الحالات</option>
+          <option value="__OVERDUE__">متأخر</option>
+          <option value="__TODAY_WORK__">شغل اليوم</option>
+          <option value="__DELIVERED_TODAY__">تسليمات اليوم</option>
+          <option value="__READY_PICKUP__">جاهز للاستلام / في قسم التسليمات</option>
+          <option value="__DEBT__">مديونية</option>
+          <option value="__CANCELLED__">ملغي / ملغى</option>
+          <option>طلب جديد</option>
+          <option>تحت التنفيذ</option>
+          <option>في انتظار موافقة العميل</option>
+          <option>في انتظار المكبس</option>
+          <option>في قسم التسليمات</option>
+          <option>تم التسليم</option>
+          <option>مكرر</option>
+          <option>ملغي</option>
+        </select>
+        <select id="priorityFilter">
+          <option value="__ACTIVE__" selected>العاجل والعادي فقط</option>
+          <option value="">كل الأولويات</option>
+          <option>عاجل</option>
+          <option>عادي</option>
+          <option>مؤجل</option>
+        </select>
+        <select id="heatPressFilter">
+          <option value="" selected>كل الأوردرات</option>
+          <option value="only">مكبس فقط</option>
+          <option value="without">بدون مكبس</option>
+        </select>
+      </div>
+
+      <div class="table-wrap compact-table-wrap">
+        <table id="ordersTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <div id="paginationBar" class="pagination"></div>
+    </section>
+  </section>
+
+  <section id="customerView" class="hidden">
+    <header class="topbar customer-topbar">
+      <div>
+        <h2 id="customerWelcomeTitle">أهلاً بك</h2>
+        <p id="customerMeta"></p>
+        <p class="version-badge">TrendOS V1898 Basic Operations + Cleanup</p>
+      </div>
+      <div class="top-actions">
+        <button id="customerGoHomeBtn" class="ghost">الرئيسية</button>
+        <button id="customerChangePassBtn" class="ghost">تغيير كلمة المرور</button>
+        <button id="customerLogoutBtn" class="danger">خروج</button>
+      </div>
+    </header>
+
+    <section id="customerHomePanel" class="card customer-home-card">
+      <div id="customerAdsBoard" class="customer-ads-board hidden"></div>
+      <h3>خدماتك على Trend Mall</h3>
+      <div class="customer-service-grid">
+        <button id="customerFastPrintFilesBtn" class="customer-service-card fast-print-card hidden" type="button">
+          <b>⚡ رفع ملف جاهز للطباعة</b>
+          <span>للعملاء المصرح لهم فقط: ارفع ملفات جاهزة للطباعة مباشرة في مسار التنفيذ السريع.</span>
+        </button>
+        <button id="customerShowNewOrderBtn" class="customer-service-card" type="button">
+          <b>+ طلب جديد</b>
+          <span>افتح مسودة شات، أضف كل البنود والملفات، ثم ابدأ التنفيذ واستلم رقم الأوردر.</span>
+        </button>
+        <button id="customerShowOrdersBtn" class="customer-service-card" type="button">
+          <b>متابعة أوردراتي</b>
+          <span>اعرف كل أوردر وصل لفين بدون الرجوع للشات الطويل.</span>
+        </button>
+        <button id="customerOpenMatbagySheetsBtn" class="customer-service-card" type="button">
+          <b>Trend Mall شيتات</b>
+          <span>رص صور الطباعة بجودة HD 300DPI.</span>
+        </button>
+        <button id="customerShowDesignerBtn" class="customer-service-card ai" type="button">
+          <b>اصنع تصميمك بنفسك</b>
+          <span>مساعد التصميم الذكي — قيد التجهيز داخل المنصة.</span>
+        </button>
+      </div>
+      <div class="customer-marketplace-panel">
+        <div class="table-tools">
+          <h3>كتالوج Trend Mall</h3>
+          <button id="customerRefreshMarketplaceBtn" class="ghost" type="button">تحديث السوق</button>
+        </div>
+        <p class="hint">منتجات وخدمات وموردين تحت مظلة Trend Mall. الطلب والدفع والمتابعة من خلال المنصة.</p>
+        <div id="customerMarketplaceBoard" class="customer-marketplace-board">
+          <div class="hint">جاري تحميل كتالوج Trend Mall...</div>
+        </div>
+        <div id="customerMarketplaceProducts" class="customer-marketplace-products hidden"></div>
+      </div>
+
+      <div class="customer-franchise-panel">
+        <div class="table-tools">
+          <h3>أقرب فرع أو مقدم خدمة معتمد</h3>
+          <button id="customerUseGpsBtn" class="ghost" type="button">📍 استخدم موقعي</button>
+        </div>
+        <p id="customerFranchiseStatus" class="msg"></p>
+        <div id="customerFranchiseBranches" class="customer-franchise-grid">
+          <div class="hint">جاري تحميل فروع مطبعجي المعتمدة...</div>
+        </div>
+      </div>
+      <div class="hint strong-hint">قاعدة التشغيل الجديدة: كل طلب يبدأ كمسودة شات. أضف البنود والملفات أولًا، ثم اضغط بدء التنفيذ للحصول على رقم أوردر واحد وبنود منفصلة للأقسام.</div>
+    </section>
+
+    <section id="customerNewOrderPanel" class="card hidden customer-chat-card whatsapp-mode-card">
+      <div class="table-tools wa-page-tools">
+        <h3>دردشة الطلب</h3>
+        <span id="customerOrderMsg"></span>
+      </div>
+
+      <div class="customer-chat-shell wa-chat-shell">
+        <div class="customer-chat-head wa-chat-head">
+          <button id="customerBackFromChatBtn" class="wa-icon-btn" type="button" title="رجوع">‹</button>
+          <div class="wa-avatar">م</div>
+          <div class="wa-head-info">
+            <b id="customerDraftTitle">مسودة طلب جديدة</b>
+            <span id="customerDraftMeta">لم يتم بدء التنفيذ بعد</span>
+          </div>
+          <button id="customerResetDraftBtn" class="wa-menu-btn" type="button" title="مسودة جديدة">⋮</button>
+        </div>
+
+        <div id="customerDraftMessages" class="customer-chat-messages wa-chat-wall">
+          <div class="chat-bubble system">ابدأ بإضافة أول بند: اختر طباعة أو ليزر، ارفع الصور والملفات، واكتب المطلوب.</div>
+        </div>
+
+        <div class="customer-chat-composer wa-chat-composer">
+          <div class="wa-composer-options">
+            <select id="customerOrderDepartment" title="القسم">
+              <option>طباعة</option>
+              <option>ليزر</option>
+            </select>
+            <input id="customerOrderQty" type="number" min="1" value="1" title="الكمية">
+            <div id="customerHeatPressBox" class="wa-inline-check heatpress-box">
+              <label><input id="customerHeatPress" type="checkbox"> 🔥 مكبس</label>
+            </div>
+            <div id="customerFlyPrintBox" class="wa-inline-check flyprint-box">
+              <label><input id="customerFlyPrint" type="checkbox"> ⚡ على الطاير</label>
+            </div>
+          </div>
+
+          <div class="wa-type-row">
+            <div class="wa-attach-menu" title="إرفاق مثل واتساب">
+              <label class="wa-attach-btn" for="customerOrderFiles" title="صور من المعرض">🖼️</label>
+              <label class="wa-attach-btn" for="customerOrderDocs" title="مستندات وملفات">📄</label>
+            </div>
+            <input id="customerOrderFiles" class="wa-file-input" type="file" accept="image/*" multiple>
+            <input id="customerOrderDocs" class="wa-file-input" type="file" accept=".pdf,.psd,.ai,.cdr,.eps,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf,application/zip" multiple>
+            <input id="customerOrderItem" class="wa-message-input" placeholder="اكتب نوع الشغل: تابلوه 30×40 / مج / قص ليزر">
+            <button id="customerAddDraftItemBtn" class="wa-send-btn" type="button" title="إرسال البند للشات">➤</button>
+          </div>
+
+          <textarea id="customerOrderNotes" class="wa-notes-input" rows="2" placeholder="اكتب الملاحظات: المقاس، الجملة، الاسم، اللون، وأي تفاصيل تنفيذ"></textarea>
+
+          <div class="wa-submit-row">
+            <span>بعد إضافة كل البنود والملفات، اضغط بدء التنفيذ لاستلام رقم الأوردر.</span>
+            <button id="customerSubmitDraftBtn" class="primary" type="button">بدء التنفيذ واستلام رقم الأوردر</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="customerOrdersPanel" class="card hidden">
+      <div class="table-tools">
+        <h3>أوردراتي</h3>
+        <button id="customerRefreshOrdersBtn" class="ghost" type="button">تحديث</button>
+      </div>
+      <p id="customerOrdersStatus" class="msg"></p>
+      <div id="customerOrdersList" class="customer-orders-list"></div>
+    </section>
+
+    <section id="customerDesignerPanel" class="card hidden">
+      <h3>اصنع تصميمك بنفسك</h3>
+      <div class="hint strong-hint">
+        هذه المرحلة تم تجهيز مكانها داخل المنصة. الإصدار القادم سيضيف مساعد التصميم الذكي: اختيار المنتج، رفع الصور، كتابة النصوص، ثم إرسال التصميم كأوردر.
+      </div>
+      <div class="designer-placeholder">
+        <b>مصمم مطبعجي الذكي</b>
+        <span>قريبًا: شات تصميم خاص بـ Trend Mall.</span>
+      </div>
+    </section>
+  </section>
+
+
+  <section id="customerImageViewerModal" class="modal hidden image-viewer-modal">
+    <div class="image-viewer-card">
+      <div class="image-viewer-top">
+        <button id="customerImageCloseBtn" class="image-viewer-close" type="button">×</button>
+        <div>
+          <b id="customerImageViewerTitle">صورة</b>
+          <span id="customerImageViewerCounter">1 / 1</span>
+        </div>
+      </div>
+      <div class="image-viewer-body">
+        <button id="customerImagePrevBtn" class="image-nav prev" type="button">‹</button>
+        <img id="customerImageViewerImg" src="" alt="صورة المحادثة">
+        <button id="customerImageNextBtn" class="image-nav next" type="button">›</button>
+      </div>
+      <div class="image-viewer-actions">
+        <button id="customerImageDeleteBtn" class="danger hidden" type="button">حذف الصورة</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="orderConversationModal" class="modal hidden">
+    <div class="modal-card order-conversation-card staff-wa-modal-card">
+      <div class="staff-chat-shell wa-chat-shell">
+        <div class="staff-chat-head wa-chat-head">
+          <button id="closeOrderConversationBtn" class="wa-icon-btn" type="button" title="إغلاق">×</button>
+          <div class="wa-avatar">م</div>
+          <div class="wa-head-info">
+            <b id="orderConversationTitle">محادثة الأوردر</b>
+            <span id="orderConversationMeta">جاري تحميل التفاصيل...</span>
+          </div>
+          <button id="refreshOrderConversationBtn" class="wa-menu-btn" type="button" title="تحديث">↻</button>
+        </div>
+
+        <div id="orderConversationBody" class="order-conversation-body staff-chat-body">
+          <div class="dash-empty">جاري تحميل محادثة الأوردر...</div>
+        </div>
+
+        <div class="order-conversation-composer staff-wa-composer wa-chat-composer">
+          <div class="wa-type-row">
+            <label class="wa-attach-btn" for="orderConversationFiles" title="رفع بروفة / تصميم / ملف">📎</label>
+            <input id="orderConversationFiles" class="wa-file-input" type="file" multiple>
+            <textarea id="orderConversationText" class="wa-message-input staff-proof-input" rows="1" placeholder="اكتب رسالة متابعة أو ارفع بروفة وسيضاف نص المراجعة تلقائيًا"></textarea>
+            <button id="sendOrderConversationBtn" class="wa-send-btn" type="button" title="إرسال المتابعة / البروفة">➤</button>
+          </div>
+          <div class="staff-proof-actions">
+            <button id="insertProofTextBtn" class="ghost" type="button">إضافة نص مراجعة البروفة</button>
+            <button id="copyProofTextBtn" class="ghost" type="button">نسخ رسالة البروفة</button>
+            <span>عند رفع بروفة، يتم إضافة تنبيه المراجعة تلقائيًا.</span>
+          </div>
+          <p id="orderConversationMsg" class="msg"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="invoiceModal" class="modal hidden">
+    <div class="modal-card invoice-card">
+      <h2 id="invoiceOrderTitle">فاتورة / تسعير</h2>
+      <p class="hint">فاتورة وائل / جابر تفتح على العميل مباشرة. اختار الصنف والكمية والسعر ثم سجل البند. البند المشترك يظهر عند القسم الآخر تلقائيًا.</p>
+
+      <input id="invoiceLineId" type="hidden">
+      <input id="invoiceItemDept" type="hidden">
+
+      <label>اسم العميل</label>
+      <input id="invoiceCustomer" readonly>
+
+      <label>رقم الأوردر</label>
+      <input id="invoiceOrderId" readonly>
+
+      <label>الصنف</label>
+      <select id="invoiceItemSelect"></select>
+      <input id="invoiceWorkDone" placeholder="اسم الصنف المختار" readonly>
+
+      <div id="invoiceLaserTools" class="invoice-laser-tools hidden">
+        <button id="invoiceOpenEasyLaserBtn" type="button" class="ghost">حاسبة جابر / حساب شغلانة</button>
+        <span>لو الشغل محتاج مقاس، افتح حاسبة جابر في EasyStore لنفس العميل والأوردر.</span>
+      </div>
+
+      <label>الكمية</label>
+      <input id="invoiceQty" type="number" min="1" value="1">
+
+      <label>سعر الفاتورة</label>
+      <input id="invoiceSalePrice" type="number" min="0" value="0">
+
+      <label class="invoice-shared-check"><input id="invoiceSharedLine" type="checkbox"> بند مشترك يظهر عند القسم الآخر إجباريًا</label>
+
+      <label>ملاحظات القسم</label>
+      <input id="invoiceNotes" placeholder="اختياري">
+
+      <div class="row">
+        <button id="saveInvoiceBtn" class="primary">تسجيل البند</button>
+        <button id="cancelInvoiceBtn" class="ghost">إلغاء</button>
+      </div>
+
+      <p id="invoiceMsg" class="msg"></p>
+    </div>
+  </section>
+
+
+  <section id="matbagyNoteModal" class="matbagy-note-dock hidden">
+    <div class="matbagy-note-card" aria-label="نوت مطبعجي">
+      <div class="matbagy-note-top matbagy-note-drag-handle" title="اسحب لتحريك النوت">
+        <span class="note-dot">📝</span>
+        <strong>نوت مطبعجي</strong>
+        <button id="closeMatbagyNoteBtn" class="ghost note-hide-btn" type="button">إخفاء</button>
+      </div>
+
+      <div class="note-mini-grid">
+        <select id="matbagyNoteCategory" title="تحديد ظهور النوت">
+          <option>الجميع</option>
+          <option>قسم الطباعة</option>
+          <option>قسم الليزر</option>
+          <option>رحمة وريفان</option>
+          <option>نوت خاصة بي</option>
+        </select>
+        <input id="matbagyNoteTitle" type="hidden" value="نوت مطبعجي">
+      </div>
+      <textarea id="matbagyNoteContent" rows="8" placeholder="اكتب النوت هنا مباشرة..."></textarea>
+      <div class="note-actions-row">
+        <button id="saveMatbagyNoteBtn" class="primary" type="button">حفظ</button>
+        <button id="clearMatbagyNoteBtn" class="ghost" type="button">تفريغ</button>
+        <button id="exportMatbagyNotesBtn" class="ghost" type="button">نسخ</button>
+      </div>
+      <p id="matbagyNoteMsg" class="msg"></p>
+      <div id="matbagyNotesList" class="matbagy-notes-list"></div>
+    </div>
+  </section>
+
+
+
+  <section id="accountingModal" class="modal hidden">
+    <div class="modal-card accounting-card">
+      <div class="modal-head-row">
+        <div>
+          <h2 id="accountingRoleTitle">مطبخ الحسابات</h2>
+          <p id="accountingRoleHint" class="hint">ضياء يجهز الخامات والتركيبات والبنود المسعرة. الموظفون يختارون البنود فقط، والتكلفة تتحسب داخليًا.</p>
+        </div>
+        <button id="closeAccountingBtn" class="ghost" type="button">إغلاق</button>
+      </div>
+
+      <div class="row accounting-actions-row">
+        <button id="refreshAccountingBtn" class="ghost" type="button">تحديث الحسابات</button>
+        <button id="initAccountingBtn" class="ghost" type="button">تجهيز شيتات الحسابات</button>
+        <span id="accountingMsg" class="msg"></span>
+      </div>
+
+      <div id="accountingProfitBox" class="accounting-section">
+        <h3>ملخص ربح / خسارة الأقسام</h3>
+        <div id="accountingSummary" class="accounting-summary-grid"></div>
+      </div>
+
+      <div id="accountingDeptLineBox" class="accounting-section">
+        <h3>فاتورة القسم</h3>
+        <p class="hint">وائل يختار من بنود الطباعة المسعرة فقط، وجابر يختار من بنود الليزر ومعاه حاسبة AI للمقاسات. تعديل السعر هنا يؤثر على الفاتورة فقط ولا يغير قاعدة الأسعار.</p>
+
+        <div id="accSmartCalcBox" class="acc-smart-calc">
+          <div class="acc-smart-head">
+            <div>
+              <h4>🤖 حاسبة AI للمقاسات والتسعير</h4>
+              <p class="hint">ضياء يستخدمها في مطبخ الحسابات، وجابر يستخدمها للمقاسات المتغيرة. أسعار الخامات تظل مخفية عن المنفذين.</p>
+            </div>
+            <span class="ai-pill">Auto Cost</span>
+          </div>
+          <div class="form-grid compact-grid">
+            <div><label>مقاس جاهز</label><select id="accSmartPreset"><option value="">مخصص</option><option value="15x21">15×21</option><option value="20x30">20×30</option><option value="30x40">30×40</option><option value="40x50">40×50</option><option value="50x60">50×60</option><option value="60x90">60×90</option></select></div>
+            <div><label>نوع الحساب</label><select id="accSmartMode"><option value="auto">AI يحدد تلقائي</option><option value="lamination">لامنيشن</option><option value="paper">ورق / رولات طباعة</option><option value="plotter">حبر بلوتر + خامة</option><option value="laser">ليزر شيت</option></select></div>
+            <div><label>عرض الشغل سم</label><input id="accSmartWidth" type="number" min="0" step="0.01" placeholder="مثال: 20"></div>
+            <div><label>طول الشغل سم</label><input id="accSmartHeight" type="number" min="0" step="0.01" placeholder="مثال: 30"></div>
+            <div><label>الكمية</label><input id="accSmartQty" type="number" min="1" step="1" value="1"></div>
+            <div><label>هالك %</label><input id="accSmartWaste" type="number" min="0" step="0.01" value="10"></div>
+            <div class="acc-ai-secret-field"><label>سعر الخام كامل</label><input id="accSmartRawCost" type="number" min="0" step="0.01" placeholder="سعر الرول أو الشيت"></div>
+            <div><label>عرض الخام سم</label><input id="accSmartRawWidth" type="number" min="0" step="0.01" placeholder="مثال: 60"></div>
+            <div><label>طول الخام</label><input id="accSmartRawHeight" type="number" min="0" step="0.01" placeholder="مثال: 100 متر أو 10000 سم"></div>
+            <div><label>نوع طول الخام</label><select id="accSmartRawHeightUnit"><option value="auto">تلقائي</option><option value="cm">سم</option><option value="m">متر</option></select></div>
+            <div class="acc-ai-secret-field"><label>تكلفة حبر/م²</label><input id="accSmartInkCostM2" type="number" min="0" step="0.01" placeholder="اختياري"></div>
+            <div class="acc-ai-secret-field"><label>تكلفة تشغيل إضافية</label><input id="accSmartLabor" type="number" min="0" step="0.01" placeholder="اختياري"></div>
+          </div>
+          <div class="row">
+            <button id="calcSmartAccountingBtn" class="ghost" type="button">احسب تلقائي</button>
+            <button id="applySmartAccountingCalcBtn" class="primary" type="button">تطبيق على فاتورة القسم</button>
+          </div>
+          <div id="accSmartResult" class="acc-smart-result">جاهز للحساب. اختار خامة أو اكتب سعر الخام والمقاس.</div>
+        </div>
+
+        <div class="form-grid compact-grid">
+          <div><label>رقم الأوردر</label><input id="accDeptLineOrderId" placeholder="مثال: 105"></div>
+          <div><label>رقم البند</label><input id="accDeptLineLineId" placeholder="اختياري"></div>
+          <div><label>اسم العميل</label><input id="accDeptLineCustomer" placeholder="اختياري"></div>
+          <div><label>القسم</label><select id="accDeptLineDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>نوع البند</label><select id="accDeptLineType"><option>قسم فقط</option><option>مشترك - ماكيت</option><option>مشترك - سنيور</option><option>مشترك - آخر</option></select></div>
+          <div class="wide"><label>اسم البند</label><input id="accDeptLineItemName" placeholder="مثال: جزء طباعة ماكيت / حفر ليزر سنيور"></div>
+          <div><label>الكمية</label><input id="accDeptLineQty" type="number" min="1" value="1"></div>
+          <div><label>البند المسعر من مطبخ الحسابات</label><select id="accDeptLineMaterial"><option value="">اختار بند محفوظ</option></select></div>
+          <div id="accOperatorAutoCostBox" class="wide acc-operator-auto-box hidden">
+            <b>حساب تلقائي مخفي</b>
+            <span id="accOperatorAutoCostMsg">اختار بند محفوظ من مطبخ الحسابات، والسيستم يحسب التكلفة داخليًا بدون إظهار أسعار الخامات.</span>
+          </div>
+          <div class="acc-cost-sensitive"><label>استهلاك الخامة</label><input id="accDeptLineMaterialQty" type="number" min="0" step="0.01" placeholder="مثال: 0.25 رول / 1 شيت"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة الخامة</label><input id="accDeptLineMaterialCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة تشغيل</label><input id="accDeptLineLaborCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="acc-cost-sensitive"><label>تكلفة أخرى</label><input id="accDeptLineOtherCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر القطعة في الفاتورة فقط</label><input id="accDeptLineSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر السيستم الرسمي</label><input id="accDeptLineSystemPrice" type="number" min="0" step="0.01" readonly placeholder="يتحدد من البند"></div>
+          <div id="accWasteBox" class="wide acc-waste-box">
+            <div class="form-grid compact-grid">
+              <div><label>تالف خامات عليه</label><input id="accDeptLineDamageCost" type="number" min="0" step="0.01" placeholder="0"></div>
+              <div><label>عوض منهم</label><input id="accDeptLineDamageCovered" type="number" min="0" step="0.01" placeholder="0"></div>
+              <div><label>الباقي عليه</label><input id="accDeptLineDamageRemaining" type="number" min="0" step="0.01" readonly placeholder="0"></div>
+              <div><label>فرق سعره عن السيستم</label><input id="accDeptLinePriceDiff" type="number" min="0" step="0.01" readonly placeholder="0"></div>
+            </div>
+            <small id="accWasteMsg">لو خامة باظت، سجل قيمتها والمبلغ اللي اتعوض. الفرق يتحفظ في بند تعويض تالف مستقل.</small>
+          </div>
+          <div class="wide"><label>ملاحظات القسم</label><input id="accDeptLineNotes" placeholder="اختياري"></div>
+        </div>
+        <button id="saveAccountingDeptLineBtn" class="primary" type="button">حفظ فاتورة القسم</button>
+        <div id="accountingDeptLinesList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingFinalInvoiceBox" class="accounting-section">
+        <h3>تقفيل الفاتورة النهائية</h3>
+        <p class="hint">رحمه / ريفان تكتب الفاتورة كاملة أو تستدعي أجزاء وائل وجابر المسجلة على نفس رقم الأوردر.</p>
+        <div class="form-grid compact-grid">
+          <div><label>رقم الأوردر</label><input id="accFinalOrderId" placeholder="مثال: 105"></div>
+          <div><label>اسم العميل</label><input id="accFinalCustomer" placeholder="اسم العميل"></div>
+          <div><label>خصم</label><input id="accFinalDiscount" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>مدفوع</label><input id="accFinalPaid" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>الحالة</label><select id="accFinalStatus"><option>مفتوحة</option><option>مغلقة</option><option>مدفوعة</option><option>عليها باقي</option></select></div>
+          <div class="wide"><label>اختيار بند/خامة محفوظة للفاتورة</label><select id="accFinalProductSelect"><option value="">بدون بند محفوظ</option></select></div>
+          <div class="wide"><label>بند يدوي عند كتابة الفاتورة كاملة</label><input id="accFinalManualDescription" placeholder="مثال: تابلوه 50×60 / فاتورة كاملة بدون بنود أقسام"></div>
+          <div><label>قيمة البند اليدوي</label><input id="accFinalManualAmount" type="number" min="0" step="0.01" value="0"></div>
+          <div class="wide"><label>ملاحظات الفاتورة</label><input id="accFinalNotes" placeholder="اختياري"></div>
+        </div>
+        <div class="row">
+          <button id="loadAccountingOrderLinesBtn" class="ghost" type="button">استدعاء أجزاء وائل وجابر</button>
+          <button id="saveAccountingFinalInvoiceBtn" class="primary" type="button">تقفيل الفاتورة النهائية</button>
+        </div>
+        <div id="accountingOrderLinesList" class="accounting-list selectable-list"></div>
+        <div class="accounting-totals">
+          <span>الإجمالي قبل الخصم: <b id="accFinalSubtotal">0 ج</b></span>
+          <span>الإجمالي النهائي: <b id="accFinalTotal">0 ج</b></span>
+          <span>الباقي: <b id="accFinalRemaining">0 ج</b></span>
+        </div>
+        <div id="accountingFinalInvoicesList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingMaterialBox" class="accounting-section hidden">
+        <h3>مطبخ الحسابات - خامات وتركيبات وبنود مسعرة</h3>
+        <p class="hint">هنا ضياء يسجل الأسعار والخامات والتركيبات. كل بند محفوظ هنا يظهر تلقائيًا في فواتير المنفذين للاختيار فقط، بدون كشف تكلفة الخامات لهم.</p>
+        <div class="form-grid compact-grid">
+          <div><label>القسم</label><select id="accMaterialDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>اسم الخامة / البند المسعر</label><input id="accMaterialName" placeholder="مثال: رول لامينشن / تابلوه 50×60 / وش سنيور كامل"></div>
+          <div><label>نوع الخامة</label><select id="accMaterialKind"><option value="raw">خامة مباشرة</option><option value="composite">خامة بمكونات / معادلة</option></select></div>
+          <div><label>الوحدة</label><input id="accMaterialUnit" placeholder="رول / شيت / متر / قطعة"></div>
+          <div><label>رصيد المخزن</label><input id="accMaterialStockQty" type="number" min="0" step="0.0001" placeholder="مثال: 10 شيت / 3 رول"></div>
+          <div><label>حد تنبيه النقص</label><input id="accMaterialMinStock" type="number" min="0" step="0.0001" placeholder="اختياري"></div>
+          <div><label>تكلفة الوحدة الداخلية</label><input id="accMaterialUnitCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر بيع رسمي للموظفين</label><input id="accMaterialSalePrice" type="number" min="0" step="0.01" placeholder="اختياري"></div>
+          <div><label>عرض الخام</label><input id="accMaterialWidth" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
+          <div><label>طول الخام</label><input id="accMaterialHeight" type="number" min="0" step="0.01" placeholder="سم أو متر"></div>
+          <div><label>نسبة الهالك %</label><input id="accMaterialWaste" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="wide"><label>ملاحظات / وصف المعادلة</label><input id="accMaterialNotes" placeholder="مثال: 0.25 رول لامينشن + 1 شيت طباعة + حبر"></div>
+        </div>
+
+        <div id="accMaterialRecipeBox" class="acc-recipe-box">
+          <h4>🧩 مكونات الخامة المحفوظة</h4>
+          <p class="hint">اختار خامات محفوظة قبل كده واكتب استهلاك كل مكون. مثال: خامة “سنيور كامل” = 1 شيت طباعة + 0.25 لامينشن + تكلفة حبر.</p>
+          <div id="accMaterialRecipeRows" class="recipe-rows">
+            <div class="recipe-row">
+              <select id="accRecipeMaterial1" class="acc-recipe-material"><option value="">اختار مكون محفوظ</option></select>
+              <input id="accRecipeQty1" type="number" min="0" step="0.0001" placeholder="استهلاك">
+              <input id="accRecipeExtra1" type="number" min="0" step="0.01" placeholder="تكلفة إضافية">
+            </div>
+            <div class="recipe-row">
+              <select id="accRecipeMaterial2" class="acc-recipe-material"><option value="">اختار مكون محفوظ</option></select>
+              <input id="accRecipeQty2" type="number" min="0" step="0.0001" placeholder="استهلاك">
+              <input id="accRecipeExtra2" type="number" min="0" step="0.01" placeholder="تكلفة إضافية">
+            </div>
+            <div class="recipe-row">
+              <select id="accRecipeMaterial3" class="acc-recipe-material"><option value="">اختار مكون محفوظ</option></select>
+              <input id="accRecipeQty3" type="number" min="0" step="0.0001" placeholder="استهلاك">
+              <input id="accRecipeExtra3" type="number" min="0" step="0.01" placeholder="تكلفة إضافية">
+            </div>
+            <div class="recipe-row">
+              <select id="accRecipeMaterial4" class="acc-recipe-material"><option value="">اختار مكون محفوظ</option></select>
+              <input id="accRecipeQty4" type="number" min="0" step="0.0001" placeholder="استهلاك">
+              <input id="accRecipeExtra4" type="number" min="0" step="0.01" placeholder="تكلفة إضافية">
+            </div>
+          </div>
+          <div class="row">
+            <button id="calcAccountingMaterialRecipeBtn" class="ghost" type="button">احسب تكلفة الخامة</button>
+            <button id="recalcAccountingMaterialsBtn" class="ghost" type="button">تحديث تكاليف الخامات المركبة</button>
+          </div>
+          <div id="accMaterialRecipeResult" class="acc-smart-result">اكتب المكونات واضغط احسب. ثم اضغط حفظ الخامة.</div>
+        </div>
+
+        <button id="saveAccountingMaterialBtn" class="primary" type="button">حفظ / تحديث الخامة</button>
+        <div id="accountingMaterialsList" class="accounting-list"></div>
+      </div>
+
+      <div id="accountingTemplateBox" class="accounting-section hidden">
+        <h3>بنود مسعرة تظهر في الفواتير</h3>
+        <p class="hint">سجل هنا البنود الثابتة التي سيختار منها وائل وجابر ورحمه/ريفان. وائل وجابر يرون اسم البند وسعره الرسمي فقط، ولا يرون تكلفة الخام.</p>
+        <div class="form-grid compact-grid">
+          <div><label>القسم</label><select id="accTemplateDepartment"><option>طباعة</option><option>ليزر</option><option>مشترك</option></select></div>
+          <div><label>التصنيف</label><select id="accTemplateCategory"><option>لامنيشن</option><option>رولات طباعة</option><option>حبر بلوتر</option><option>ليزر شيت</option><option>ماكيت / سنيور مشترك</option><option>آخر</option></select></div>
+          <div class="wide"><label>اسم البند</label><input id="accTemplateItemName" placeholder="مثال: كارت 15×21 لامينشن / رول 60 سم / حبر بلوتر"></div>
+          <div><label>المقاس</label><input id="accTemplateSize" placeholder="15×21 / 60×90 / رول 60"></div>
+          <div><label>الخامة</label><input id="accTemplateMaterial" placeholder="اسم الخامة المستخدمة"></div>
+          <div><label>الناتج من الوحدة</label><input id="accTemplateOutputCount" type="number" min="0" step="0.01" placeholder="كام قطعة من الرول/الشيت"></div>
+          <div><label>تكلفة حبر</label><input id="accTemplateInkCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>تكلفة ثابتة</label><input id="accTemplateFixedCost" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div><label>سعر بيع مقترح</label><input id="accTemplateSalePrice" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="wide"><label>ملاحظات الحساب</label><input id="accTemplateNotes" placeholder="اختياري"></div>
+        </div>
+        <button id="saveAccountingTemplateBtn" class="primary" type="button">حفظ البند الثابت</button>
+        <div id="accountingTemplatesList" class="accounting-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="passwordModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>تغيير كلمة المرور</h2>
+
+      <label>كلمة المرور القديمة</label>
+      <input id="oldPassword" type="password">
+
+      <label>كلمة المرور الجديدة</label>
+      <input id="newPassword" type="password">
+
+      <label>تأكيد كلمة المرور الجديدة</label>
+      <input id="confirmPassword" type="password">
+
+      <div class="row">
+        <button id="savePassBtn" class="primary">حفظ</button>
+        <button id="cancelPassBtn" class="ghost">إلغاء</button>
+      </div>
+
+      <p id="passMsg" class="msg"></p>
+    </div>
+  </section>
+
+  <section id="customerPasswordModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>تغيير كلمة مرور العميل</h2>
+
+      <label>كلمة المرور الحالية</label>
+      <input id="customerOldPassword" type="password">
+
+      <label>كلمة المرور الجديدة</label>
+      <input id="customerNewPassword" type="password">
+
+      <label>تأكيد كلمة المرور الجديدة</label>
+      <input id="customerConfirmPassword" type="password">
+
+      <div class="row">
+        <button id="customerSavePassBtn" class="primary">حفظ</button>
+        <button id="customerCancelPassBtn" class="ghost">إلغاء</button>
+      </div>
+
+      <p id="customerPassMsg" class="msg"></p>
+    </div>
+  </section>
+</main>
+
+<script src="config.js?v=trendos-v1898-basic-operations-cleanup"></script>
+<script src="app.js?v=trendos-v1898-basic-operations-cleanup"></script>
+<script src="matbagy_theme_v1860.js?v=trendos-v1898-basic-operations-cleanup"></script>
+
+<script>
+(function(){
+  'use strict';
+  var LOCK = 'Trend Mall | فكرتك جاهزة';
+  var BUILD = 'TrendOS V1898 Basic Operations + Cleanup';
+  var CACHE_TAG = 'trendos-v1898-basic-operations-cleanup';
+  window.TRENDOS_SESSION_CATALOG_FIX = BUILD;
+  window.TRENDOS_PATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
+  window.TRENDOS_LOADED_APP_VERSION = BUILD;
+  window.MATBAGY_BUILD_VERSION = BUILD;
+  window.MATBAGY_BATCH_VERSION = 'V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';
+  window.TRENDOS_ACTIVE_CACHE_TAG = CACHE_TAG;
+  try{
+    localStorage.setItem('TRENDOS_ACTIVE_BUILD', BUILD);
+    localStorage.setItem('TRENDOS_CACHE_TAG', CACHE_TAG);
+    ['TRENDOS_LAST_VERSION','TRENDOS_OLD_VERSION','MATBAGY_OLD_VERSION','MATBAGY_VERSION_MIX_WARNING'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(regs){ regs.forEach(function(r){try{r.unregister();}catch(e){}}); });
+    if (window.caches && caches.keys) caches.keys().then(function(keys){ keys.forEach(function(k){ if(/trendos|matbagy|workbox|cache/i.test(k)) caches.delete(k); }); });
+  }catch(e){}
+  function stableText(el){
+    if(!el) return;
+    var t = el.textContent || '';
+    if(/V18\d{2}|ES\d+|Batch|Patch|Ledger|Accounting Manager|Proof Copy|Stable/.test(t) || el.classList.contains('version-badge')){
+      el.textContent = LOCK;
     }
-  </script>
+  }
+  function lockVersion(){
+    try{document.title='Trend Mall | فكرتك جاهزة';}catch(e){}
+    try{window.TRENDOS_PATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';window.TRENDOS_LOADED_APP_VERSION=BUILD;window.MATBAGY_BUILD_VERSION=BUILD;window.MATBAGY_BATCH_VERSION='V1896_DEBT_ADDORDER_CATALOG_HARD_LOCK';}catch(e){}
+    document.querySelectorAll('.version-badge,.version,.app-version,#batch24VersionLine,#es16Version,#es25Version,#es26Version,[data-version],[data-app-version]').forEach(stableText);
+    document.querySelectorAll('p,small,span,div,b,h1,h2,h3').forEach(function(el){
+      if(el.children && el.children.length>0) return;
+      var t=el.textContent||'';
+      if(t.length<180 && /(V185|V186|V187|V188[0-8]|ES1\d|ES2\d|ES31|Ledger Fix|Accounting Manager|Batch 25|Proof Copy)/i.test(t)){
+        el.textContent = t.replace(/مطبعجي مصر\s*V18\d{2}\s*-\s*ES\d+[^
+]*/gi, LOCK)
+          .replace(/TrendOS\s*V18\d{2}[^
+]*/gi, BUILD)
+          .replace(/V18\d{2}\s*[-+\/]?\s*ES\d+[^
+]*/gi, 'V1893')
+          .replace(/Batch\s*\d+[^
+]*/gi, BUILD)
+          .replace(/Ledger Fix|Accounting Manager|Proof Copy/gi, 'Stable Version Lock');
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', lockVersion);
+  lockVersion();
+  [50,150,300,700,1200,1800,2600,4000].forEach(function(ms){setTimeout(lockVersion,ms);});
+  try{ new MutationObserver(function(){ lockVersion(); }).observe(document.documentElement, {childList:true,subtree:true,characterData:true}); }catch(e){}
+})();
+</script>
 
 </body>
 </html>
